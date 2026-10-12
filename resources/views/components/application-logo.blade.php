@@ -1,0 +1,1 @@
+<img src="{{ asset('images/kosudgama_logo.png') }}" alt="Kosudgama Logo" {{ $attributes }} />
