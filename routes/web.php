@@ -130,6 +130,25 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::post('/approve/{id}', [PurchaseApprovalController::class, 'approveSdm'])->name('approve'); // Ini akan butuh 'requisition_number'
             Route::post('/reject/{id}', [PurchaseApprovalController::class, 'reject'])->name('reject');
         });
+        // Pengelolaan akun Kepala Unit, SDM, dan Pengurus
+        Route::prefix('management/pengelola')
+            ->name('management.managers.')
+            ->group(function () {
+                Route::get('/', [UserController::class, 'indexManagers'])
+                    ->name('index');
+
+                Route::get('/create', [UserController::class, 'createManager'])
+                    ->name('create');
+
+                Route::post('/', [UserController::class, 'storeManager'])
+                    ->name('store');
+
+                Route::get('/{user}/edit', [UserController::class, 'editManager'])
+                    ->name('edit');
+
+                Route::put('/{user}', [UserController::class, 'updateManager'])
+                    ->name('update');
+            });
     });
 
     // === ROLE: PENGURUS ===

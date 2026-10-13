@@ -17,60 +17,65 @@
                     </x-nav-link>
 
                     @if(Auth::user()->role == \App\Enums\UserRole::KEPALA_UNIT)
-                        <x-nav-link :href="route('approval.unit.index')" :active="request()->routeIs('approval.unit.*')">
-                            {{ __('Approval Unit') }}
-                        </x-nav-link>
-                        <x-nav-link :href="route('purchase.approval.unit.index')" :active="request()->routeIs('purchase.approval.unit.*')">
-                            {{ __('Approval Pembelian') }}
-                        </x-nav-link>
-                        <x-nav-link :href="route('management.unit.index')" :active="request()->routeIs('management.unit.index')">
-                            {{ __('Data Karyawan Unit') }}
-                        </x-nav-link>
+                    <x-nav-link :href="route('approval.unit.index')" :active="request()->routeIs('approval.unit.*')">
+                        {{ __('Approval Unit') }}
+                    </x-nav-link>
+                    <x-nav-link :href="route('purchase.approval.unit.index')" :active="request()->routeIs('purchase.approval.unit.*')">
+                        {{ __('Approval Pembelian') }}
+                    </x-nav-link>
+                    <x-nav-link :href="route('management.unit.index')" :active="request()->routeIs('management.unit.index')">
+                        {{ __('Data Karyawan Unit') }}
+                    </x-nav-link>
                     @endif
 
                     @if(Auth::user()->role == \App\Enums\UserRole::SDM)
-                        <x-nav-link :href="route('approval.sdm.index')" :active="request()->routeIs('approval.sdm.*')">
-                            {{ __('Approval SDM') }}
-                        </x-nav-link>
-                        <x-nav-link :href="route('purchase.approval.sdm.index')" :active="request()->routeIs('purchase.approval.sdm.*')">
-                            {{ __('Approval Pembelian') }}
-                        </x-nav-link>
-                        <x-nav-link :href="route('management.all.index')" :active="request()->routeIs('management.all.index')">
-                            {{ __('Data Karyawan') }}
-                        </x-nav-link>
-                        <x-nav-link :href="route('absentee.index')" :active="request()->routeIs('absentee.*')">
-                            {{ __('Data Absensi') }}
-                        </x-nav-link>
-                        
-                        <x-nav-link :href="route('report.index')" :active="request()->routeIs('report.*')">
-                            {{ __('Laporan') }}
-                        </x-nav-link>
-                        
-                        <x-nav-link :href="route('settings.notes.edit')" :active="request()->routeIs('settings.notes.*')">
-                            {{ __('Edit Catatan') }}
-                        </x-nav-link>
+                    <x-nav-link :href="route('approval.sdm.index')" :active="request()->routeIs('approval.sdm.*')">
+                        {{ __('Approval SDM') }}
+                    </x-nav-link>
+                    <x-nav-link :href="route('purchase.approval.sdm.index')" :active="request()->routeIs('purchase.approval.sdm.*')">
+                        {{ __('Approval Pembelian') }}
+                    </x-nav-link>
+                    <x-nav-link
+                        :href="route('management.managers.index')"
+                        :active="request()->routeIs('management.managers.*')">
+                        {{ __('Data Pengelola') }}
+                    </x-nav-link>
+                    <x-nav-link :href="route('management.all.index')" :active="request()->routeIs('management.all.index')">
+                        {{ __('Data Karyawan') }}
+                    </x-nav-link>
+                    <x-nav-link :href="route('absentee.index')" :active="request()->routeIs('absentee.*')">
+                        {{ __('Data Absensi') }}
+                    </x-nav-link>
+
+                    <x-nav-link :href="route('report.index')" :active="request()->routeIs('report.*')">
+                        {{ __('Laporan') }}
+                    </x-nav-link>
+
+                    <x-nav-link :href="route('settings.notes.edit')" :active="request()->routeIs('settings.notes.*')">
+                        {{ __('Edit Catatan') }}
+                    </x-nav-link>
                     @endif
 
                     @if(Auth::user()->role == \App\Enums\UserRole::PENGURUS)
-                        <x-nav-link :href="route('approval.pengurus.index')" :active="request()->routeIs('approval.pengurus.*')">
-                            {{ __('Approval Cuti') }}
-                        </x-nav-link>
-                        <x-nav-link :href="route('purchase.approval.pengurus.index')" :active="request()->routeIs('purchase.approval.pengurus.*')">
-                            {{ __('Approval Pembelian') }}
-                        </x-nav-link>
-                        <x-nav-link :href="route('report.index')" :active="request()->routeIs('report.*')">
-                            {{ __('Laporan') }}
-                        </x-nav-link>
-                        <x-nav-link :href="route('management.all.index')" :active="request()->routeIs('management.all.index')">
-                            {{ __('Data Karyawan') }}
-                        </x-nav-link>
+                    <x-nav-link :href="route('approval.pengurus.index')" :active="request()->routeIs('approval.pengurus.*')">
+                        {{ __('Approval Cuti') }}
+                    </x-nav-link>
+                    <x-nav-link :href="route('purchase.approval.pengurus.index')" :active="request()->routeIs('purchase.approval.pengurus.*')">
+                        {{ __('Approval Pembelian') }}
+                    </x-nav-link>
+                    <x-nav-link :href="route('report.index')" :active="request()->routeIs('report.*')">
+                        {{ __('Laporan') }}
+                    </x-nav-link>
+                    <x-nav-link :href="route('management.all.index')" :active="request()->routeIs('management.all.index')">
+                        {{ __('Data Karyawan') }}
+                    </x-nav-link>
                     @endif
                 </div>
             </div>
 
             <!-- Settings Dropdown -->
             <div class="hidden sm:flex sm:items-center sm:ms-6">
-                
+
                 <!-- Notifikasi Dropdown -->
                 <x-dropdown align="right" width="96">
                     <x-slot name="trigger">
@@ -90,16 +95,16 @@
                         <div style="width: 24rem;">
                             <div class="p-2 font-semibold text-sm text-gray-700 border-b">Notifikasi</div>
                             @forelse($unreadNotifications as $notification)
-                                <a href="{{ $notification->data['url'] ?? '#' }}" 
-                                   class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" 
-                                   style="white-space: normal;">
-                                    {{ $notification->data['message'] }}
-                                    <span class="block text-xs text-gray-400">{{ $notification->created_at->diffForHumans() }}</span>
-                                </a>
+                            <a href="{{ $notification->data['url'] ?? '#' }}"
+                                class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                style="white-space: normal;">
+                                {{ $notification->data['message'] }}
+                                <span class="block text-xs text-gray-400">{{ $notification->created_at->diffForHumans() }}</span>
+                            </a>
                             @empty
-                                <div class="px-4 py-3 text-sm text-gray-500 text-center">
-                                    Tidak ada notifikasi baru.
-                                </div>
+                            <div class="px-4 py-3 text-sm text-gray-500 text-center">
+                                Tidak ada notifikasi baru.
+                            </div>
                             @endforelse
                         </div>
                     </x-slot>
@@ -127,7 +132,7 @@
                             <form method="POST" action="{{ route('logout') }}">
                                 @csrf
                                 <x-dropdown-link :href="route('logout')"
-                                        onclick="event.preventDefault();
+                                    onclick="event.preventDefault();
                                                     this.closest('form').submit();">
                                     {{ __('Log Out') }}
                                 </x-dropdown-link>
@@ -136,7 +141,7 @@
                     </x-dropdown>
                 </div>
             </div>
-            
+
             <!-- Hamburger -->
             <div class="-me-2 flex items-center sm:hidden">
                 <button @click="open = ! open; markNotificationsAsRead()" class="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 focus:text-gray-500 transition duration-150 ease-in-out">
@@ -157,53 +162,58 @@
             </x-responsive-nav-link>
 
             @if(Auth::user()->role == \App\Enums\UserRole::KEPALA_UNIT)
-                <x-responsive-nav-link :href="route('approval.unit.index')" :active="request()->routeIs('approval.unit.*')">
-                    {{ __('Approval Unit') }}
-                </x-responsive-nav-link>
-                 <x-responsive-nav-link :href="route('purchase.approval.unit.index')" :active="request()->routeIs('purchase.approval.unit.*')">
-                    {{ __('Approval Pembelian') }}
-                </x-responsive-nav-link>
-                <x-responsive-nav-link :href="route('management.unit.index')" :active="request()->routeIs('management.unit.index')">
-                    {{ __('Data Karyawan Unit') }}
-                </x-responsive-nav-link>
+            <x-responsive-nav-link :href="route('approval.unit.index')" :active="request()->routeIs('approval.unit.*')">
+                {{ __('Approval Unit') }}
+            </x-responsive-nav-link>
+            <x-responsive-nav-link :href="route('purchase.approval.unit.index')" :active="request()->routeIs('purchase.approval.unit.*')">
+                {{ __('Approval Pembelian') }}
+            </x-responsive-nav-link>
+            <x-responsive-nav-link
+                :href="route('management.managers.index')"
+                :active="request()->routeIs('management.managers.*')">
+                {{ __('Data Pengelola') }}
+            </x-responsive-nav-link>
+            <x-responsive-nav-link :href="route('management.unit.index')" :active="request()->routeIs('management.unit.index')">
+                {{ __('Data Karyawan Unit') }}
+            </x-responsive-nav-link>
             @endif
-            
+
             @if(Auth::user()->role == \App\Enums\UserRole::SDM)
-                <x-responsive-nav-link :href="route('approval.sdm.index')" :active="request()->routeIs('approval.sdm.*')">
-                    {{ __('Approval SDM') }}
-                </x-responsive-nav-link>
-                <x-responsive-nav-link :href="route('purchase.approval.sdm.index')" :active="request()->routeIs('purchase.approval.sdm.*')">
-                    {{ __('Approval Pembelian') }}
-                </x-responsive-nav-link>
-                <x-responsive-nav-link :href="route('management.all.index')" :active="request()->routeIs('management.all.index')">
-                    {{ __('Data Karyawan') }}
-                </x-responsive-nav-link>
-                <x-responsive-nav-link :href="route('absentee.index')" :active="request()->routeIs('absentee.*')">
-                    {{ __('Data Absensi') }}
-                </x-responsive-nav-link>
-                
-                <x-responsive-nav-link :href="route('report.index')" :active="request()->routeIs('report.*')">
-                    {{ __('Laporan') }}
-                </x-responsive-nav-link>
-                
-                <x-responsive-nav-link :href="route('settings.notes.edit')" :active="request()->routeIs('settings.notes.*')">
-                    {{ __('Edit Catatan') }}
-                </x-responsive-nav-link>
+            <x-responsive-nav-link :href="route('approval.sdm.index')" :active="request()->routeIs('approval.sdm.*')">
+                {{ __('Approval SDM') }}
+            </x-responsive-nav-link>
+            <x-responsive-nav-link :href="route('purchase.approval.sdm.index')" :active="request()->routeIs('purchase.approval.sdm.*')">
+                {{ __('Approval Pembelian') }}
+            </x-responsive-nav-link>
+            <x-responsive-nav-link :href="route('management.all.index')" :active="request()->routeIs('management.all.index')">
+                {{ __('Data Karyawan') }}
+            </x-responsive-nav-link>
+            <x-responsive-nav-link :href="route('absentee.index')" :active="request()->routeIs('absentee.*')">
+                {{ __('Data Absensi') }}
+            </x-responsive-nav-link>
+
+            <x-responsive-nav-link :href="route('report.index')" :active="request()->routeIs('report.*')">
+                {{ __('Laporan') }}
+            </x-responsive-nav-link>
+
+            <x-responsive-nav-link :href="route('settings.notes.edit')" :active="request()->routeIs('settings.notes.*')">
+                {{ __('Edit Catatan') }}
+            </x-responsive-nav-link>
             @endif
-            
+
             @if(Auth::user()->role == \App\Enums\UserRole::PENGURUS)
-                <x-responsive-nav-link :href="route('approval.pengurus.index')" :active="request()->routeIs('approval.pengurus.*')">
-                    {{ __('Approval Cuti') }}
-                </x-responsive-nav-link>
-                <x-responsive-nav-link :href="route('purchase.approval.pengurus.index')" :active="request()->routeIs('purchase.approval.pengurus.*')">
-                    {{ __('Approval Pembelian') }}
-                </x-responsive-nav-link>
-                <x-responsive-nav-link :href="route('report.index')" :active="request()->routeIs('report.*')">
-                    {{ __('Laporan') }}
-                </x-responsive-nav-link>
-                <x-responsive-nav-link :href="route('management.all.index')" :active="request()->routeIs('management.all.index')">
-                    {{ __('Data Karyawan') }}
-                </x-responsive-nav-link>
+            <x-responsive-nav-link :href="route('approval.pengurus.index')" :active="request()->routeIs('approval.pengurus.*')">
+                {{ __('Approval Cuti') }}
+            </x-responsive-nav-link>
+            <x-responsive-nav-link :href="route('purchase.approval.pengurus.index')" :active="request()->routeIs('purchase.approval.pengurus.*')">
+                {{ __('Approval Pembelian') }}
+            </x-responsive-nav-link>
+            <x-responsive-nav-link :href="route('report.index')" :active="request()->routeIs('report.*')">
+                {{ __('Laporan') }}
+            </x-responsive-nav-link>
+            <x-responsive-nav-link :href="route('management.all.index')" :active="request()->routeIs('management.all.index')">
+                {{ __('Data Karyawan') }}
+            </x-responsive-nav-link>
             @endif
         </div>
 
@@ -218,14 +228,14 @@
             <div class="mt-3 space-y-1">
                 <div class="px-4 py-2 font-semibold text-sm text-gray-700 border-t border-b">Notifikasi (@if($unreadNotificationsCount > 0)<span id="notification-badge-mobile">{{ $unreadNotificationsCount }}</span>@else 0 @endif)</div>
                 @forelse($unreadNotifications as $notification)
-                    <x-responsive-nav-link :href="$notification->data['url'] ?? '#'" style="white-space: normal;">
-                        {{ $notification->data['message'] }}
-                        <span class="block text-xs text-gray-400">{{ $notification->created_at->diffForHumans() }}</span>
-                    </x-responsive-nav-link>
+                <x-responsive-nav-link :href="$notification->data['url'] ?? '#'" style="white-space: normal;">
+                    {{ $notification->data['message'] }}
+                    <span class="block text-xs text-gray-400">{{ $notification->created_at->diffForHumans() }}</span>
+                </x-responsive-nav-link>
                 @empty
-                    <div class="px-4 py-3 text-sm text-gray-500">
-                        Tidak ada notifikasi baru.
-                    </div>
+                <div class="px-4 py-3 text-sm text-gray-500">
+                    Tidak ada notifikasi baru.
+                </div>
                 @endforelse
             </div>
 
@@ -238,7 +248,7 @@
                 <form method="POST" action="{{ route('logout') }}">
                     @csrf
                     <x-responsive-nav-link :href="route('logout')"
-                            onclick="event.preventDefault();
+                        onclick="event.preventDefault();
                                         this.closest('form').submit();">
                         {{ __('Log Out') }}
                     </x-responsive-nav-link>
@@ -252,22 +262,22 @@
     function markNotificationsAsRead() {
         const badge = document.getElementById('notification-badge');
         const mobileBadge = document.getElementById('notification-badge-mobile');
-        
+
         if (badge || mobileBadge) {
             fetch('{{ route("notifications.markAsRead") }}', {
-                method: 'POST',
-                headers: {
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                }
-            }).then(response => response.json())
-              .then(data => {
-                  if (data.status === 'success') {
-                      if(badge) badge.remove();
-                      if(mobileBadge) mobileBadge.remove();
-                  }
-              }).catch(error => console.error('Error marking notifications as read:', error));
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    }
+                }).then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        if (badge) badge.remove();
+                        if (mobileBadge) mobileBadge.remove();
+                    }
+                }).catch(error => console.error('Error marking notifications as read:', error));
         }
     }
 </script>

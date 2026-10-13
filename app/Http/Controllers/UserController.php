@@ -213,4 +213,163 @@ class UserController extends Controller
             ->route('management.all.index')
             ->with('success', $pesan);
     }
+    /**
+     * Daftar akun Kepala Unit, SDM, dan Pengurus.
+     */
+    public function indexManagers()
+    {
+        $roles = [
+            UserRole::KEPALA_UNIT,
+            UserRole::SDM,
+            UserRole::PENGURUS,
+        ];
+
+        $pengelola = User::whereIn(
+            'role',
+            array_map(fn($role) => $role->value, $roles)
+        )
+            ->orderBy('role')
+            ->orderBy('name')
+            ->get();
+
+        return view('management.pengelola.index', compact('pengelola'));
+    }
+
+    /**
+     * Form tambah akun pengelola.
+     */
+    public function createManager()
+    {
+        $roles = [
+            UserRole::KEPALA_UNIT,
+            UserRole::SDM,
+            UserRole::PENGURUS,
+        ];
+
+        $units = UserUnit::cases();
+
+        return view('management.pengelola.create', compact('roles', 'units'));
+    }
+
+    /**
+     * Simpan akun pengelola baru.
+     */
+    public function storeManager(Request $request)
+    {
+        $roleValues = [
+            UserRole::KEPALA_UNIT->value,
+            UserRole::SDM->value,
+            UserRole::PENGURUS->value,
+        ];
+
+        $unitValues = array_map(
+            fn($unit) => $unit->value,
+            UserUnit::cases()
+        );
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            'role' => ['required', Rule::in($roleValues)],
+            'unit' => ['required', Rule::in($unitValues)],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+        ]);
+
+        User::create([
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'role' => $validated['role'],
+            'unit' => $validated['unit'],
+            'password' => Hash::make($validated['password']),
+            'email_verified_at' => now(),
+            'is_active' => true,
+        ]);
+
+        return redirect()
+            ->route('management.managers.index')
+            ->with('success', 'Akun pengelola berhasil ditambahkan.');
+    }
+
+    /**
+     * Form edit akun pengelola.
+     */
+    public function editManager(User $user)
+    {
+        abort_unless(
+            in_array($user->role, [
+                UserRole::KEPALA_UNIT,
+                UserRole::SDM,
+                UserRole::PENGURUS,
+            ], true),
+            404
+        );
+
+        $roles = [
+            UserRole::KEPALA_UNIT,
+            UserRole::SDM,
+            UserRole::PENGURUS,
+        ];
+
+        $units = UserUnit::cases();
+
+        return view(
+            'management.pengelola.edit',
+            compact('user', 'roles', 'units')
+        );
+    }
+
+    /**
+     * Simpan perubahan akun pengelola.
+     */
+    public function updateManager(Request $request, User $user)
+    {
+        abort_unless(
+            in_array($user->role, [
+                UserRole::KEPALA_UNIT,
+                UserRole::SDM,
+                UserRole::PENGURUS,
+            ], true),
+            404
+        );
+
+        $roleValues = [
+            UserRole::KEPALA_UNIT->value,
+            UserRole::SDM->value,
+            UserRole::PENGURUS->value,
+        ];
+
+        $unitValues = array_map(
+            fn($unit) => $unit->value,
+            UserUnit::cases()
+        );
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'email' => [
+                'required',
+                'email',
+                'max:255',
+                Rule::unique('users', 'email')->ignore($user->id),
+            ],
+            'role' => ['required', Rule::in($roleValues)],
+            'unit' => ['required', Rule::in($unitValues)],
+            'password' => ['nullable', 'string', 'min:8', 'confirmed'],
+        ]);
+
+        $user->name = $validated['name'];
+        $user->email = $validated['email'];
+        $user->role = $validated['role'];
+        $user->unit = $validated['unit'];
+        $user->email_verified_at = $user->email_verified_at ?? now();
+
+        if (!empty($validated['password'])) {
+            $user->password = Hash::make($validated['password']);
+        }
+
+        $user->save();
+
+        return redirect()
+            ->route('management.managers.index')
+            ->with('success', 'Akun pengelola berhasil diperbarui.');
+    }
 }
