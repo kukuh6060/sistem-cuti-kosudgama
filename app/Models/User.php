@@ -52,6 +52,7 @@ class User extends Authenticatable
             'password' => 'hashed',
             'role' => UserRole::class,
             'unit' => UserUnit::class,
+            'is_active' => 'boolean',
         ];
     }
 

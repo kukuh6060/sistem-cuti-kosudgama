@@ -54,9 +54,45 @@ class PurchaseRequisitionController extends Controller
             $fileName = 'signatures/purchase_' . $user->id . '_' . time() . '.png';
             Storage::disk('public')->put($fileName, $imageData);
             $signaturePath = $fileName;
-        } elseif ($request->signature_mode == 'upload' && $request->hasFile('signature_file')) {
-            $path = $request->file('signature_file')->store('public/signatures');
-            $signaturePath = str_replace('public/', '', $path);
+        } elseif ($request->signature_mode == 'upload') {
+            if (!$request->hasFile('signature_file')) {
+                return back()
+                    ->withErrors([
+                        'signature_file' => 'Silakan pilih file tanda tangan terlebih dahulu.',
+                    ])
+                    ->withInput();
+            }
+
+            $file = $request->file('signature_file');
+            $stream = fopen($file->getPathname(), 'rb');
+
+            if ($stream === false) {
+                return back()
+                    ->withErrors([
+                        'signature_file' => 'File tanda tangan tidak dapat dibaca.',
+                    ])
+                    ->withInput();
+            }
+
+            $fileName = 'signatures/' . bin2hex(random_bytes(16)) . '.png';
+
+            try {
+                $saved = Storage::disk('public')->put($fileName, $stream);
+            } finally {
+                if (is_resource($stream)) {
+                    fclose($stream);
+                }
+            }
+
+            if (!$saved) {
+                return back()
+                    ->withErrors([
+                        'signature_file' => 'Gagal menyimpan file tanda tangan.',
+                    ])
+                    ->withInput();
+            }
+
+            $signaturePath = $fileName;
         }
 
         // --- Simpan ke Database (menggunakan Transaksi) ---
@@ -83,9 +119,9 @@ class PurchaseRequisitionController extends Controller
 
             // 3. Kirim Notifikasi ke Kepala Unit
             $kepalaUnit = User::where('role', UserRole::KEPALA_UNIT)
-                              ->where('unit', $user->unit)
-                              ->first();
-            
+                ->where('unit', $user->unit)
+                ->first();
+
             if ($kepalaUnit) {
                 $kepalaUnit->notify(new PengajuanStatusNotification(
                     'Permohonan Pembelian Barang baru dari ' . $user->name,
@@ -99,7 +135,7 @@ class PurchaseRequisitionController extends Controller
             DB::rollBack(); // Batalkan jika ada error
             return back()->withErrors(['error' => 'Gagal menyimpan data. ' . $e->getMessage()]);
         }
-        
+
         return redirect()->route('dashboard')->with('success', 'Permohonan Pembelian Barang berhasil dikirim.');
     }
 }

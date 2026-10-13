@@ -27,7 +27,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Profile (Bawaan Breeze)
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
     // Rute Notifikasi
     Route::post('/notifications/mark-as-read', [NotificationController::class, 'markAsRead'])
@@ -76,6 +75,30 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // === ROLE: SDM ===
     Route::middleware('role:sdm')->group(function () {
+        // Pengelolaan akun karyawan — khusus SDM
+        Route::prefix('management/karyawan')
+            ->name('management.users.')
+            ->group(function () {
+                Route::get('/create', [UserController::class, 'create'])
+                    ->name('create');
+
+                Route::post('/', [UserController::class, 'store'])
+                    ->name('store');
+
+                Route::get('/{user}/edit', [UserController::class, 'edit'])
+                    ->name('edit');
+
+                Route::put('/{user}', [UserController::class, 'update'])
+                    ->name('update');
+                Route::patch('/{user}/reset-password', [
+                    UserController::class,
+                    'resetPassword',
+                ])->name('reset-password');
+                Route::patch('/{user}/status', [
+                    UserController::class,
+                    'updateStatus',
+                ])->name('status');
+            });
         Route::prefix('approval-sdm')->name('approval.sdm.')->group(function () {
             Route::get('/', [ApprovalController::class, 'indexSdm'])->name('index');
             Route::post('/approve/{id}', [ApprovalController::class, 'approveSdm'])->name('approve');
