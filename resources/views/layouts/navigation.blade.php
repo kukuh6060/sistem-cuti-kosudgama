@@ -168,11 +168,6 @@
             <x-responsive-nav-link :href="route('purchase.approval.unit.index')" :active="request()->routeIs('purchase.approval.unit.*')">
                 {{ __('Approval Pembelian') }}
             </x-responsive-nav-link>
-            <x-responsive-nav-link
-                :href="route('management.managers.index')"
-                :active="request()->routeIs('management.managers.*')">
-                {{ __('Data Pengelola') }}
-            </x-responsive-nav-link>
             <x-responsive-nav-link :href="route('management.unit.index')" :active="request()->routeIs('management.unit.index')">
                 {{ __('Data Karyawan Unit') }}
             </x-responsive-nav-link>
@@ -184,6 +179,11 @@
             </x-responsive-nav-link>
             <x-responsive-nav-link :href="route('purchase.approval.sdm.index')" :active="request()->routeIs('purchase.approval.sdm.*')">
                 {{ __('Approval Pembelian') }}
+            </x-responsive-nav-link>
+            <x-responsive-nav-link
+                :href="route('management.managers.index')"
+                :active="request()->routeIs('management.managers.*')">
+                {{ __('Data Pengelola') }}
             </x-responsive-nav-link>
             <x-responsive-nav-link :href="route('management.all.index')" :active="request()->routeIs('management.all.index')">
                 {{ __('Data Karyawan') }}

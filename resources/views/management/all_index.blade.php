@@ -73,11 +73,12 @@
                                         Sisa
                                     </th>
                                     <th class="px-4 py-3 bg-gray-50 text-center text-xs font-medium text-gray-500 uppercase">
-                                        Aksi
-                                    </th>
-                                    <th class="px-4 py-3 bg-gray-50 text-center text-xs font-medium text-gray-500 uppercase">
                                         Status Akun
                                     </th>
+                                    <th class="px-4 py-3 bg-gray-50 text-center text-xs font-medium text-gray-500 uppercase">
+                                        Aksi
+                                    </th>
+
                                 </tr>
                             </thead>
 
@@ -118,7 +119,13 @@
                                     <td class="px-4 py-4 whitespace-nowrap text-center font-semibold">
                                         {{ $remainingQuota }}
                                     </td>
-
+                                    <td class="text-center">
+                                        @if ($user->is_active)
+                                        <span style="color: #16a34a; font-weight: 600;">Aktif</span>
+                                        @else
+                                        <span style="color: #dc2626; font-weight: 600;">Nonaktif</span>
+                                        @endif
+                                    </td>
                                     <td class="px-4 py-4 whitespace-nowrap text-center">
                                         @if (auth()->user()->role === \App\Enums\UserRole::SDM)
                                         <a
@@ -149,13 +156,7 @@
                                             </button>
                                         </form>
                                     </td>
-                                    <td>
-                                        @if ($user->is_active)
-                                        <span style="color: #16a34a; font-weight: 600;">Aktif</span>
-                                        @else
-                                        <span style="color: #dc2626; font-weight: 600;">Nonaktif</span>
-                                        @endif
-                                    </td>
+
                                 </tr>
 
                                 @empty

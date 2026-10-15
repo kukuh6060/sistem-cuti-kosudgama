@@ -69,14 +69,14 @@
                             </td>
                             <td class="px-4 py-3">
                                 @if ($akun->is_active)
-                                <span class="text-green-700">Aktif</span>
+                                <span style="color: #16a34a; font-weight: 600;">Aktif</span>
                                 @else
-                                <span class="text-red-700">Nonaktif</span>
+                                <span style="color: #dc2626; font-weight: 600;">Nonaktif</span>
                                 @endif
                             </td>
                             <td class="px-4 py-3">
                                 <a href="{{ route('management.managers.edit', $akun) }}"
-                                    class="font-medium text-blue-600 hover:underline">
+                                    style="display: inline-block; background-color: #2563eb; color: #ffffff; padding: 8px 14px; border-radius: 6px; font-weight: 600; text-decoration: none;">
                                     Edit
                                 </a>
                             </td>
