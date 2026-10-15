@@ -11,7 +11,17 @@
                 <div class="p-6 text-gray-900">
 
                     @if(Auth::user()->role == \App\Enums\UserRole::KARYAWAN)
-
+                    <h3 class="font-bold text-lg">Selamat Datang, {{ Auth::user()->name }}</h3>
+                    <div class="mb-4">
+                        <p class="text-sm text-gray-600">
+                            Unit Kerja:
+                            <strong class="text-gray-800">
+                                {{ Auth::user()->unit
+                    ? ucwords(str_replace('_', ' ', Auth::user()->unit->value))
+                    : 'Belum ditentukan' }}
+                            </strong>
+                        </p>
+                    </div>
                     @if($myQuota)
                     <div class="mb-6 p-4 bg-blue-100 border border-blue-300 rounded-md">
                         <h3 class="font-bold text-lg">Jatah Cuti Tahun {{ $myQuota->year }}</h3>
@@ -228,7 +238,20 @@
                     @else
                     <h3 class="font-bold text-lg">Selamat Datang, {{ Auth::user()->name }}</h3>
                     <p class="mt-2">Anda login sebagai <strong>{{ Auth::user()->role->value }}</strong>. Silakan gunakan menu navigasi di atas untuk mengakses fitur Anda.</p>
-
+                    @if(in_array(Auth::user()->role, [
+                    \App\Enums\UserRole::KEPALA_UNIT
+                    ]))
+                    <div class="mb-4">
+                        <p class="text-sm text-gray-600">
+                            Unit Kerja:
+                            <strong class="text-gray-800">
+                                {{ Auth::user()->unit
+                    ? ucwords(str_replace('_', ' ', Auth::user()->unit->value))
+                    : 'Belum ditentukan' }}
+                            </strong>
+                        </p>
+                    </div>
+                    @endif
                     <div class="mt-6">
                         @if(Auth::user()->role == \App\Enums\UserRole::KEPALA_UNIT)
                         <a href="{{ route('approval.unit.index') }}" class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-500">
