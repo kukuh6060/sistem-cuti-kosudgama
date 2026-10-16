@@ -36,17 +36,41 @@ class UserController extends Controller
         ));
     }
 
-    public function indexAll()
+    public function indexAll(Request $request)
     {
         $tahun = now()->year;
 
-        $karyawan = User::where('role', UserRole::KARYAWAN)
+        // Kolom yang boleh digunakan untuk pengurutan
+        $sort = $request->query('sort', 'unit');
+        $direction = $request->query('direction', 'asc');
+
+        $allowedSorts = ['name', 'unit', 'is_active'];
+
+        if (!in_array($sort, $allowedSorts, true)) {
+            $sort = 'unit';
+        }
+
+        if (!in_array($direction, ['asc', 'desc'], true)) {
+            $direction = 'asc';
+        }
+
+        $query = User::where('role', UserRole::KARYAWAN)
             ->with(['leaveQuotas' => function ($query) use ($tahun) {
                 $query->where('year', $tahun);
-            }])
-            ->orderBy('unit', 'asc')
-            ->orderBy('name', 'asc')
-            ->get();
+            }]);
+
+        if ($sort === 'is_active') {
+            // Arah asc: Aktif terlebih dahulu.
+            // Arah desc: Nonaktif terlebih dahulu.
+            $query->orderByRaw(
+                'CASE WHEN is_active = 1 THEN 0 ELSE 1 END ' . $direction
+            )->orderBy('name', 'asc');
+        } else {
+            $query->orderBy($sort, $direction)
+                ->orderBy('name', 'asc');
+        }
+
+        $karyawan = $query->get();
 
         return view('management.all_index', compact('karyawan'));
     }
@@ -216,7 +240,7 @@ class UserController extends Controller
     /**
      * Daftar akun Kepala Unit, SDM, dan Pengurus.
      */
-    public function indexManagers()
+    public function indexManagers(Request $request)
     {
         $roles = [
             UserRole::KEPALA_UNIT,
@@ -224,13 +248,34 @@ class UserController extends Controller
             UserRole::PENGURUS,
         ];
 
-        $pengelola = User::whereIn(
+        $sort = $request->query('sort', 'role');
+        $direction = $request->query('direction', 'asc');
+
+        $allowedSorts = ['name', 'role', 'unit', 'is_active'];
+
+        if (!in_array($sort, $allowedSorts, true)) {
+            $sort = 'role';
+        }
+
+        if (!in_array($direction, ['asc', 'desc'], true)) {
+            $direction = 'asc';
+        }
+
+        $query = User::whereIn(
             'role',
             array_map(fn($role) => $role->value, $roles)
-        )
-            ->orderBy('role')
-            ->orderBy('name')
-            ->get();
+        );
+
+        if ($sort === 'is_active') {
+            $query->orderByRaw(
+                'CASE WHEN is_active = 1 THEN 0 ELSE 1 END ' . $direction
+            )->orderBy('name', 'asc');
+        } else {
+            $query->orderBy($sort, $direction)
+                ->orderBy('name', 'asc');
+        }
+
+        $pengelola = $query->get();
 
         return view('management.pengelola.index', compact('pengelola'));
     }

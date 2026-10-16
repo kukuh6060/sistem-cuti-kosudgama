@@ -35,13 +35,69 @@
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
-                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase">No.</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase">Nama</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase">Email</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase">Jabatan</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase">Unit</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase">Status</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase">Aksi</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase">
+                                No.
+                            </th>
+
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase">
+                                <a href="{{ request()->fullUrlWithQuery([
+                'sort' => 'name',
+                'direction' => request('sort', 'role') === 'name'
+                    && request('direction', 'asc') === 'asc' ? 'desc' : 'asc'
+            ]) }}" class="inline-flex items-center gap-1 hover:text-indigo-600">
+                                    Nama
+                                    {{ request('sort', 'role') === 'name'
+                    ? (request('direction', 'asc') === 'asc' ? '↑' : '↓')
+                    : '↕' }}
+                                </a>
+                            </th>
+
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase">
+                                Email
+                            </th>
+
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase">
+                                <a href="{{ request()->fullUrlWithQuery([
+                'sort' => 'role',
+                'direction' => request('sort', 'role') === 'role'
+                    && request('direction', 'asc') === 'asc' ? 'desc' : 'asc'
+            ]) }}" class="inline-flex items-center gap-1 hover:text-indigo-600">
+                                    Jabatan
+                                    {{ request('sort', 'role') === 'role'
+                    ? (request('direction', 'asc') === 'asc' ? '↑' : '↓')
+                    : '↕' }}
+                                </a>
+                            </th>
+
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase">
+                                <a href="{{ request()->fullUrlWithQuery([
+                'sort' => 'unit',
+                'direction' => request('sort', 'role') === 'unit'
+                    && request('direction', 'asc') === 'asc' ? 'desc' : 'asc'
+            ]) }}" class="inline-flex items-center gap-1 hover:text-indigo-600">
+                                    Unit
+                                    {{ request('sort', 'role') === 'unit'
+                    ? (request('direction', 'asc') === 'asc' ? '↑' : '↓')
+                    : '↕' }}
+                                </a>
+                            </th>
+
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase">
+                                <a href="{{ request()->fullUrlWithQuery([
+                'sort' => 'is_active',
+                'direction' => request('sort', 'role') === 'is_active'
+                    && request('direction', 'asc') === 'asc' ? 'desc' : 'asc'
+            ]) }}" class="inline-flex items-center gap-1 hover:text-indigo-600">
+                                    Status
+                                    {{ request('sort', 'role') === 'is_active'
+                    ? (request('direction', 'asc') === 'asc' ? '↑' : '↓')
+                    : '↕' }}
+                                </a>
+                            </th>
+
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase">
+                                Aksi
+                            </th>
                         </tr>
                     </thead>
 

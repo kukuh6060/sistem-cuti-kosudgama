@@ -50,7 +50,16 @@
                             <thead>
                                 <tr>
                                     <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">
-                                        Nama Karyawan
+                                        <a href="{{ request()->fullUrlWithQuery([
+        'sort' => 'name',
+        'direction' => request('sort', 'unit') === 'name'
+            && request('direction', 'asc') === 'asc' ? 'desc' : 'asc'
+    ]) }}" class="inline-flex items-center gap-1 hover:text-indigo-600">
+                                            Nama Karyawan
+                                            {{ request('sort', 'unit') === 'name'
+            ? (request('direction', 'asc') === 'asc' ? '↑' : '↓')
+            : '↕' }}
+                                        </a>
                                     </th>
 
                                     <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">
@@ -58,7 +67,16 @@
                                     </th>
 
                                     <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">
-                                        Unit Kerja
+                                        <a href="{{ request()->fullUrlWithQuery([
+        'sort' => 'unit',
+        'direction' => request('sort', 'unit') === 'unit'
+            && request('direction', 'asc') === 'asc' ? 'desc' : 'asc'
+    ]) }}" class="inline-flex items-center gap-1 hover:text-indigo-600">
+                                            Unit Kerja
+                                            {{ request('sort', 'unit') === 'unit'
+            ? (request('direction', 'asc') === 'asc' ? '↑' : '↓')
+            : '↕' }}
+                                        </a>
                                     </th>
 
                                     <th class="px-4 py-3 bg-gray-50 text-center text-xs font-medium text-gray-500 uppercase">
@@ -73,11 +91,22 @@
                                         Sisa
                                     </th>
                                     <th class="px-4 py-3 bg-gray-50 text-center text-xs font-medium text-gray-500 uppercase">
-                                        Status Akun
+                                        <a href="{{ request()->fullUrlWithQuery([
+        'sort' => 'is_active',
+        'direction' => request('sort', 'unit') === 'is_active'
+            && request('direction', 'asc') === 'asc' ? 'desc' : 'asc'
+    ]) }}" class="inline-flex items-center justify-center gap-1 hover:text-indigo-600">
+                                            Status Akun
+                                            {{ request('sort', 'unit') === 'is_active'
+            ? (request('direction', 'asc') === 'asc' ? '↑' : '↓')
+            : '↕' }}
+                                        </a>
                                     </th>
+                                    @if (auth()->user()->role === \App\Enums\UserRole::SDM)
                                     <th class="px-4 py-3 bg-gray-50 text-center text-xs font-medium text-gray-500 uppercase">
                                         Aksi
                                     </th>
+                                    @endif
 
                                 </tr>
                             </thead>
@@ -133,9 +162,6 @@
                                             style="display: inline-block; background-color: #2563eb; color: #ffffff; padding: 8px 14px; border-radius: 6px; font-weight: 600; text-decoration: none;">
                                             Edit Akun
                                         </a>
-                                        @else
-                                        <span class="text-gray-400">-</span>
-                                        @endif
                                         <form
                                             action="{{ route('management.users.status', $user) }}"
                                             method="POST"
@@ -155,6 +181,8 @@
                                                 {{ $user->is_active ? 'Nonaktifkan' : 'Aktifkan Kembali' }}
                                             </button>
                                         </form>
+                                        @endif
+
                                     </td>
 
                                 </tr>
