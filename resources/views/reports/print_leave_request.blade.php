@@ -1,53 +1,342 @@
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Formulir Pengajuan Cuti - {{ $data->user->name }}</title>
+    <title>Formulir Pengajuan Cuti atau Ijin - {{ $data->user->name }}</title>
+
     <style>
-        /* ... (Semua CSS Anda dari sebelumnya biarkan apa adanya) ... */
-        body { font-family: 'Times New Roman', Times, serif; font-size: 12pt; line-height: 1.6; margin: 0; padding: 0; background-color: #f0f0f0; }
-        .container { width: 90%; max-width: 800px; margin: 20px auto; background-color: #fff; padding: 1.5cm; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
-        .header { display: flex; align-items: center; border-bottom: 3px double #000; padding-bottom: 10px; margin-bottom: 20px; }
-        .header .logo { flex-shrink: 0; margin-right: 15px; }
-        .header .logo img { height: 70px; width: auto; }
-        .header .text-content { flex-grow: 1; text-align: center; }
-        .header h1 { font-size: 14pt; font-weight: bold; margin: 0; }
-        .header p { font-size: 11pt; margin: 2px 0; }
-        .title { text-align: center; font-size: 14pt; font-weight: bold; text-decoration: underline; margin: 20px 0; }
-        table { width: 100%; border-collapse: collapse; }
-        table tr td { padding: 5px 0; vertical-align: top; }
-        table tr td:first-child { width: 200px; }
-        table tr td:nth-child(2) { width: 15px; text-align: center; }
-        .checkbox-label { display: inline-block; margin-right: 20px; }
-        .checkbox { display: inline-block; width: 16px; height: 16px; border: 1px solid #000; margin-right: 10px; vertical-align: middle; text-align: center; line-height: 16px; }
-        .purpose-box { border: 1px solid #000; padding: 10px; min-height: 80px; margin-top: 5px; }
-        .signature-area { margin-top: 30px; width: 100%; display: table; }
-        .signature-box { display: table-cell; width: 33.3%; text-align: center; vertical-align: top; position: relative; height: 120px; }
-        .signature-content { height: 60px; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; }
-        .signature-content img { max-height: 60px; max-width: 150px; object-fit: contain; }
-        .signature-name { border-top: 1px solid #000; width: 80%; max-width: 200px; margin-left: auto; margin-right: auto; position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); }
-        .print-button { width: 100%; text-align: center; padding: 15px 0; background-color: #f0f0f0; border-top: 1px solid #ccc; margin-top: 20px; }
-        .print-button button { padding: 8px 16px; font-size: 14px; background-color: #4a4a4a; color: white; border: none; border-radius: 5px; cursor: pointer; }
-        .print-button button:hover { background-color: #6a6a6a; }
-        @media print { .print-button { display: none; } body { background-color: #fff; } .container { margin: 0; padding: 0; width: 100%; max-width: 100%; box-shadow: none; border: none; } }
+        @page {
+            size: A4 portrait;
+            margin: 10mm;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Times New Roman", serif;
+            font-size: 10pt;
+            line-height: 1.25;
+            color: #000;
+            background: #eee;
+            margin: 0;
+        }
+
+        .container {
+            width: 190mm;
+            min-height: 277mm;
+            margin: 15px auto;
+            padding: 5mm;
+            background: #fff;
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 3px double #000;
+            padding-bottom: 7px;
+            margin-bottom: 10px;
+        }
+
+        .logo img {
+            width: 65px;
+            height: auto;
+            object-fit: contain;
+        }
+
+        .header-text {
+            flex: 1;
+            text-align: center;
+        }
+
+        .header-text h1 {
+            font-size: 12pt;
+            margin: 0 0 2px;
+        }
+
+        .header-text p {
+            font-size: 8pt;
+            margin: 3px 0 0;
+        }
+
+        .form-number {
+            display: flex;
+            justify-content: space-between;
+            font-size: 9pt;
+            margin: 5px 0;
+        }
+
+        .form-title {
+            text-align: center;
+            font-size: 13pt;
+            font-weight: bold;
+            margin: 10px 0 12px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        td,
+        th {
+            padding: 3px 5px;
+            vertical-align: top;
+        }
+
+        .identity td {
+            padding: 3px 2px;
+        }
+
+        .identity td:first-child {
+            width: 175px;
+        }
+
+        .identity td:nth-child(2) {
+            width: 12px;
+            text-align: center;
+        }
+
+        .section-title {
+            font-weight: bold;
+            margin: 10px 0 4px;
+        }
+
+        .checkbox {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border: 1px solid #000;
+            text-align: center;
+            line-height: 10px;
+            font-size: 10pt;
+            vertical-align: -1px;
+            margin-right: 4px;
+        }
+
+        .choice-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px 22px;
+            margin: 5px 0;
+        }
+
+        .small-note {
+            font-size: 8pt;
+            font-style: italic;
+        }
+
+        .purpose-box {
+            border: 1px solid #000;
+            min-height: 35px;
+            padding: 6px;
+            white-space: pre-line;
+        }
+
+        .absensi {
+            margin-top: 9px;
+        }
+
+        .absensi th,
+        .absensi td {
+            padding: 4px 1px;
+            
+        }
+
+        .absensi .ket {
+            width: 150px;
+        }
+
+        .absensi th {
+            text-align: left;
+            font-weight: bold;
+        }
+
+        .absensi .number {
+            
+            text-align: left;
+        }
+
+        .approval-title {
+            font-weight: bold;
+            text-align: center;
+            margin: 10px 0 5px;
+        }
+
+        .approval-table {
+            table-layout: fixed;
+        }
+
+        .approval-table th,
+        .approval-table td {
+            border: 1px solid #000;
+            text-align: center;
+            padding: 4px;
+        }
+
+        .approval-table th {
+            font-weight: bold;
+        }
+
+        .decision {
+            display: flex;
+            justify-content: center;
+            gap: 7px;
+            font-size: 8pt;
+            margin-top: 5px;
+        }
+
+        .signature {
+            height: 42px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .signature img {
+            max-width: 110px;
+            max-height: 40px;
+            object-fit: contain;
+        }
+
+        .signer-name {
+            border-top: 1px solid #000;
+            padding-top: 3px;
+            min-height: 18px;
+            overflow-wrap: anywhere;
+        }
+
+        .applicant {
+            width: 40%;
+            margin: 9px 0 0 auto;
+            text-align: center;
+        }
+
+        .applicant .signature {
+            height: 42px;
+        }
+
+        .notes {
+            border: 1px solid #000;
+            padding: 6px 8px;
+            margin-top: 8px;
+            font-size: 8pt;
+        }
+
+        .notes p {
+            margin: 2px 0;
+        }
+
+        .print-button {
+            text-align: center;
+            padding: 12px;
+        }
+
+        .print-button button {
+            padding: 8px 18px;
+            background: #333;
+            color: #fff;
+            border: 0;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        @media print {
+            body {
+                background: #fff;
+                font-size: 9pt;
+            }
+
+            .container {
+                width: 100%;
+                min-height: 0;
+                margin: 0;
+                padding: 0;
+            }
+
+            .print-button {
+                display: none;
+            }
+
+            .absensi,
+            .approval-table,
+            .notes,
+            .purpose-box {
+                break-inside: avoid;
+            }
+        }
     </style>
 </head>
+
 <body>
+    @php
+    $status = $data->status instanceof \App\Enums\LeaveStatus
+    ? $data->status->value
+    : $data->status;
+
+    // Keputusan ditentukan berdasarkan tanda tangan dan approver
+    // agar penolakan di setiap tahap dapat dibedakan.
+    $unitApproved = !empty($data->signature_path_unit);
+    $sdmApproved = !empty($data->signature_path_sdm);
+    $pengurusApproved = !empty($data->signature_path_pengurus);
+
+    $unitRejected = $status === 'rejected'
+    && !empty($data->approved_by_head_id)
+    && !$unitApproved;
+
+    $sdmRejected = $status === 'rejected'
+    && !empty($data->approved_by_hr_id)
+    && !$sdmApproved;
+
+    $pengurusRejected = $status === 'rejected'
+    && !empty($data->approved_by_pengurus_id)
+    && !$pengurusApproved;
+
+    $unitName = $data->user->unit
+    ? ucwords(str_replace('_', ' ', $data->user->unit->value))
+    : '-';
+
+    $tahunPengajuan = $data->created_at->format('Y');
+
+    $formatTanggal = fn ($tanggal) => $tanggal
+    ? \Carbon\Carbon::parse($tanggal)->locale('id')->isoFormat('D MMMM YYYY')
+    : '-';
+
+    $nilaiAbsensi = fn ($field) => $absensi && $absensi->$field !== null
+    ? $absensi->$field
+    : '-';
+    @endphp
+
     <div class="container">
         <div class="header">
             <div class="logo">
-                <img src="{{ asset('images/kosudgama_logo.png') }}" alt="Logo Koperasi">
+                <img src="{{ asset('images/kosudgama_logo.png') }}" alt="Logo Kosudgama">
             </div>
-            <div class="text-content">
+
+            <div class="header-text">
                 <h1>KOPERASI KONSUMEN</h1>
                 <h1>KOSUDGAMA DAYA GEMILANG</h1>
                 <h1>YOGYAKARTA</h1>
-                <p>Jl. Monjali No.153, Karangjati, Sinduadi, Kec. Mlati, Kabupaten Sleman, Daerah Istimewa Yogyakarta 55284</p>
+                <p>
+                    Jl. Monjali No.153, Karangjati, Sinduadi, Kec. Mlati,
+                    Kabupaten Sleman, Daerah Istimewa Yogyakarta 55284
+                </p>
             </div>
         </div>
-        <h2 class="title">FORMULIR APLIKASI PENGAJUAN CUTI ATAU IJIN KARYAWAN</h2>
-        <table>
+
+        <div class="form-number">
+            <span>No: 001/UmumSDM-KSG/{{ $tahunPengajuan }}</span>
+        </div>
+
+        <div class="form-title">
+            FORMULIR APLIKASI PENGAJUAN CUTI ATAU IJIN KARYAWAN
+        </div>
+
+        <table class="identity">
             <tbody>
                 <tr>
                     <td>Nama Karyawan</td>
@@ -57,108 +346,266 @@
                 <tr>
                     <td>Unit Kerja</td>
                     <td>:</td>
-                    <td>{{ $data->user->unit ? ucwords(str_replace('_', ' ', $data->user->unit->value)) : 'N/A' }}</td>
+                    <td>{{ $unitName }}</td>
                 </tr>
                 <tr>
                     <td>Tgl Pengajuan Cuti atau Ijin</td>
                     <td>:</td>
-                    <td>{{ $data->created_at->isoFormat('dddd, D MMMM YYYY') }}</td>
+                    <td>{{ $formatTanggal($data->created_at) }}</td>
                 </tr>
             </tbody>
         </table>
-        <p style="margin-top: 20px;">Mengajukan: <span style="font-size: 10pt; font-style: italic;">*centang salah satu</span></p>
-        <div class="checkbox-label">
-            <span class="checkbox">@if($data->leave_type == 'cuti') &#10003; @endif</span>
-            <span>Cuti</span>
+
+        <div class="section-title">
+            Mengajukan:
+            <span class="small-note">*centang salah satu</span>
         </div>
-        <div class="checkbox-label">
-            <span class="checkbox">@if($data->leave_type == 'ijin') &#10003; @endif</span>
-            <span>Ijin tidak masuk kerja</span>
+
+        <div class="choice-row">
+            <span>
+                <span class="checkbox">
+                    @if($data->leave_type === 'cuti') ✓ @endif
+                </span>
+                Cuti
+            </span>
+
+            <span>
+                <span class="checkbox">
+                    @if($data->leave_type === 'ijin') ✓ @endif
+                </span>
+                Ijin tidak masuk bekerja
+            </span>
         </div>
-        <table style="margin-top: 20px;">
+
+        <table class="identity">
             <tbody>
                 <tr>
-                    <td>Hari & Tanggal Cuti</td>
+                    <td>Lama Pengajuan</td>
                     <td>:</td>
-                    <td>{{ $data->start_date->isoFormat('D MMMM YYYY') }} s.d. {{ $data->end_date->isoFormat('D MMMM YYYY') }}</td>
-                </tr>
-                <tr>
-                    <td>Total Hari</td>
-                    <td>:</td>
-                    <td>{{ $data->total_days }} hari</td>
-                </tr>
-                <tr>
-                    <td style="vertical-align: top;">Untuk Kepentingan</td>
-                    <td style="vertical-align: top;">:</td>
                     <td>
-                        <div class="purpose-box">
-                            {{ $data->reason }}
+                        @foreach([1, 2, 3] as $hari)
+                        <span style="margin-right: 12px; white-space: nowrap;">
+                            <span class="checkbox">
+                                @if((int) $data->total_days === $hari) ✓ @endif
+                            </span>
+                            {{ $hari }} hari
+                        </span>
+                        @endforeach
+                    </td>
+                </tr>
+                <tr>
+                    <td>Hari &amp; Tanggal</td>
+                    <td>:</td>
+                    <td>
+                        {{ $formatTanggal($data->start_date) }}
+                        s.d. {{ $formatTanggal($data->end_date) }}
+                    </td>
+                </tr>
+                <tr>
+                    <td>Untuk Kepentingan</td>
+                    <td>:</td>
+                    <td>
+                        <div class="purpose-box">{{ $data->reason ?: '-' }}</div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+        <div class="applicant">
+            Yogyakarta, {{ $formatTanggal($data->created_at) }}<br>
+            Yang mengajukan cuti/ijin,
+
+            <div class="signature">
+                @if($data->signature_path)
+                <img
+                    src="{{ asset('storage/' . $data->signature_path) }}"
+                    alt="Tanda tangan pemohon">
+                @endif
+            </div>
+
+            <div class="signer-name">
+                {{ $data->user->name }}
+            </div>
+        </div>
+
+        <div class="section-title">DATA ABSENSI</div>
+        <div class="small-note">
+            Diisi oleh Umum &amp; SDM. Rekap terhitung tanggal 21 bulan sebelumnya
+            s.d. tanggal pengajuan cuti.
+        </div>
+
+        <table class="absensi">
+            <tbody>
+                <tr>
+                    <td colspan="3"><b>Tidak masuk bekerja dengan alasan</b></td>
+                    <td colspan="3" style="text-align: left;"> <b>Masuk bekerja tidak penuh dengan alasan</b></td>
+                </tr>
+                <tr>
+                    <td class="ket">• Sakit</td>
+                    <td>:</td>
+                    <td class="number">{{ $nilaiAbsensi('sakit') }} hari</td>
+                    <td class="ket">• Terlambat</td>
+                    <td>:</td>
+                    <td class="number">{{ $nilaiAbsensi('terlambat') }} hari</td>
+                </tr>
+                <tr>
+                    <td class="ket">• Tanpa kabar</td>
+                    <td>:</td>
+                    <td class="number">{{ $nilaiAbsensi('tanpa_kabar') }} hari</td>
+                    <td class="ket">• ½ hari kerja</td>
+                    <td>:</td>
+                    <td class="number">{{ $nilaiAbsensi('setengah_hari') }} hari</td>
+                </tr>
+                <tr>
+                    <td colspan="3"><b>Ijin meninggalkan tempat</b></td>
+                    <td colspan="3" style="text-align: left;"><b>Sisa cuti atau ijin yang belum diambil</b></td>
+                </tr>
+                <tr>
+                    <td class="ket">• Kurang dari 1 jam</td>
+                    <td>:</td>
+                    <td class="number">{{ $nilaiAbsensi('ijin_kurang_1_jam') }} hari</td>
+                    <td class="ket">• Cuti</td>
+                    <td>:</td>
+                    <td class="number">{{ $sisaCuti ?? '-' }} hari</td>
+                </tr>
+                <tr>
+                    <td class="ket">• Lebih dari 1 jam</td>
+                    <td>:</td>
+                    <td class="number">{{ $nilaiAbsensi('ijin_lebih_1_jam') }} hari</td>
+                    <td class="ket">• Ijin</td>
+                    <td>:</td>
+                    <td class="number">{{ $sisaIzin ?? '-' }} hari</td>
+                </tr>
+                <tr>
+                    <td class="ket">• Pulang awal</td>
+                    <td>:</td>
+                    <td class="number">{{ $nilaiAbsensi('pulang_awal') }} hari</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="approval-title">PERSETUJUAN</div>
+
+        <table class="approval-table">
+            <thead>
+                <tr>
+                    <th>
+                        Kepala/Wakil Kepala<br>Unit Kerja
+                    </th>
+                    <th>
+                        Kabag./Wakabag<br>Umum &amp; SDM
+                    </th>
+                    <th>
+                        Penanggung Jawab<br>SDM/Pengurus
+                    </th>
+                </tr>
+            </thead>
+
+            <tbody>
+                <tr>
+                    <td>
+                        <div class="decision">
+                            <span>
+                                <span class="checkbox">
+                                    @if($unitApproved) ✓ @endif
+                                </span>
+                                Disetujui
+                            </span>
+                            <span>
+                                <span class="checkbox">
+                                    @if($unitRejected) ✓ @endif
+                                </span>
+                                Tidak disetujui
+                            </span>
+                        </div>
+
+                        <div class="signature">
+                            @if($data->signature_path_unit)
+                            <img
+                                src="{{ asset('storage/' . $data->signature_path_unit) }}"
+                                alt="Tanda tangan Kepala Unit">
+                            @endif
+                        </div>
+
+                        <div class="signer-name">
+                            {{ $data->approverUnit->name ?? '........................' }}
+                        </div>
+                    </td>
+
+                    <td>
+                        <div class="decision">
+                            <span>
+                                <span class="checkbox">
+                                    @if($sdmApproved) ✓ @endif
+                                </span>
+                                Disetujui
+                            </span>
+                            <span>
+                                <span class="checkbox">
+                                    @if($sdmRejected) ✓ @endif
+                                </span>
+                                Tidak disetujui
+                            </span>
+                        </div>
+
+                        <div class="signature">
+                            @if($data->signature_path_sdm)
+                            <img
+                                src="{{ asset('storage/' . $data->signature_path_sdm) }}"
+                                alt="Tanda tangan SDM">
+                            @endif
+                        </div>
+
+                        <div class="signer-name">
+                            {{ $data->approverSdm->name ?? '........................' }}
+                        </div>
+                    </td>
+
+                    <td>
+                        <div class="decision">
+                            <span>
+                                <span class="checkbox">
+                                    @if($pengurusApproved) ✓ @endif
+                                </span>
+                                Disetujui
+                            </span>
+                            <span>
+                                <span class="checkbox">
+                                    @if($pengurusRejected) ✓ @endif
+                                </span>
+                                Tidak disetujui
+                            </span>
+                        </div>
+
+                        <div class="signature">
+                            @if($data->signature_path_pengurus)
+                            <img
+                                src="{{ asset('storage/' . $data->signature_path_pengurus) }}"
+                                alt="Tanda tangan Pengurus">
+                            @endif
+                        </div>
+
+                        <div class="signer-name">
+                            {{ $data->approverPengurus->name ?? '........................' }}
                         </div>
                     </td>
                 </tr>
             </tbody>
         </table>
 
-        <!-- === BLOK TANDA TANGAN YANG DIPERBARUI === -->
-        <div class="signature-area">
-            <div class="signature-box">
-                Mengetahui,<br>
-                Pengurus
-                <div class="signature-content">
-                    @if($data->signature_path_pengurus)
-                        <img src="{{ asset('storage/' . $data->signature_path_pengurus) }}" alt="TTD Pengurus">
-                    @endif
-                </div>
-                <div class="signature-name">
-                    ( {{ $data->approverPengurus->name ?? '..................' }} )
-                </div>
-            </div>
-            <div class="signature-box">
-                Mengetahui,<br>
-                Bag.Umum & SDM
-                <div class="signature-content">
-                    @if($data->signature_path_sdm)
-                        <img src="{{ asset('storage/' . $data->signature_path_sdm) }}" alt="TTD SDM">
-                    @endif
-                </div>
-                <div class="signature-name">
-                    ( {{ $data->approverSdm->name ?? '..................' }} )
-                </div>
-            </div>
-            <div class="signature-box">
-                Mengizinkan,<br>
-                Unit Kerja
-                <div class="signature-content">
-                    @if($data->signature_path_unit)
-                        <img src="{{ asset('storage/' . $data->signature_path_unit) }}" alt="TTD Kepala Unit">
-                    @endif
-                </div>
-                <div class="signature-name">
-                    ( {{ $data->approverUnit->name ?? '..................' }} )
-                </div>
-            </div>
-        </div>
-        <div class="signature-area" style="margin-top: 20px; width: 33.3%; margin-left: 66.6%;">
-             <div class="signature-box">
-                Yogyakarta, {{ $data->created_at->isoFormat('D MMMM YYYY') }}<br>
-                Yg mengajukan cuti,
-                <div class="signature-content">
-                    @if($data->signature_path)
-                        <img src="{{ asset('storage/' . $data->signature_path) }}" alt="TTD Pemohon">
-                    @endif
-                </div>
-                <div class="signature-name">
-                    ( {{ $data->user->name }} )
-                </div>
-            </div>
-        </div>
-        <!-- === AKHIR BLOK TANDA TANGAN === -->
+        
 
+        <div class="notes">
+            <strong>Catatan penting:</strong>
+            <p>1. Masih memiliki hak; cuti tahunan 12 (dua belas) hari dan dapat diambil maksimal 3 (tiga) hari dalam 1 bulan, izin tidak masuk bekerja 3 (tiga) hari.</p>
+            <p>2. Izin tidak masuk bekerja dapat diajukan setelah hak cuti habis.</p>
+            <p>3. Maksimal pengajuan seminggu sebelumnya pelaksanaan, kecuali untuk kepentingan tertentu yang sifatnya tidak dapat direncanakan.</p>
+            <p>4. Mendapatkan persetujuan masing-masing dari kepala/Wakil Kepala Unit Kerja, Kepala Bagian/Wakil Kepala Bag. Umum & SDM dan penanggung jawab SDM/Pengurus.</p>
+        </div>
     </div>
-    
+
     <div class="print-button">
-        <button onclick="window.print()">Cetak Halaman Ini</button>
+        <button type="button" onclick="window.print()">Cetak Formulir</button>
     </div>
-
 </body>
+
 </html>

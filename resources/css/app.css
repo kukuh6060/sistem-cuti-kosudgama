@@ -1,3 +1,27 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Membuat seluruh tabel responsif pada layar kecil */
+.table-responsive {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+}
+
+/* Menjaga lebar tabel sesuai isi kolom */
+.table-responsive > table {
+    width: max-content;
+    min-width: 100%;
+    max-width: none;
+}
+
+/* Memberi petunjuk fokus untuk navigasi keyboard */
+.table-responsive:focus-visible {
+    outline: 2px solid #2563eb;
+    outline-offset: 2px;
+}

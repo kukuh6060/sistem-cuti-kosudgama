@@ -8,6 +8,8 @@ use App\Models\PartialLeaveRequest;
 use App\Models\PurchaseRequisition;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use App\Models\AbsenteeRecord;
+use App\Models\LeaveQuota;
 
 class ReportController extends Controller
 {
@@ -175,10 +177,47 @@ class ReportController extends Controller
     /**
      * Cetak cuti atau izin harian.
      */
+    /**
+     * Cetak formulir pengajuan cuti atau izin tidak masuk bekerja.
+     */
     public function printLeaveRequest(LeaveRequest $request)
     {
-        $request->load('user', 'approverUnit', 'approverSdm');
+        $request->load(
+            'user',
+            'approverUnit',
+            'approverSdm',
+            'approverPengurus'
+        );
 
-        return view('reports.print_leave_request', ['data' => $request]);
+        $tahunPengajuan = $request->created_at->year;
+
+        // Ambil data rekap absensi milik pemohon pada tahun pengajuan.
+        $absensi = AbsenteeRecord::where('user_id', $request->user_id)
+            ->where('year', $tahunPengajuan)
+            ->first();
+
+        // Ambil data kuota cuti pada tahun pengajuan.
+        $quota = LeaveQuota::where('user_id', $request->user_id)
+            ->where('year', $tahunPengajuan)
+            ->first();
+
+        // Hitung sisa cuti berdasarkan kuota yang tersimpan.
+        $totalCuti = $quota?->total_quota ?? 12;
+        $cutiTerpakai = $quota?->used_quota ?? 0;
+        $sisaCuti = max(0, $totalCuti - $cutiTerpakai);
+
+        // Sisa izin menggunakan data input SDM jika tersedia.
+        $sisaIzin = $absensi?->sisa_ijin_input
+            ?? max(
+                0,
+                ($quota?->total_izin ?? 3) - ($quota?->used_izin ?? 0)
+            );
+
+        return view('reports.print_leave_request', [
+            'data' => $request,
+            'absensi' => $absensi,
+            'sisaCuti' => $sisaCuti,
+            'sisaIzin' => $sisaIzin,
+        ]);
     }
 }

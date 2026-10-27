@@ -160,7 +160,7 @@
                                         <a
                                             href="{{ route('management.users.edit', $user) }}"
                                             style="display: inline-block; background-color: #2563eb; color: #ffffff; padding: 8px 14px; border-radius: 6px; font-weight: 600; text-decoration: none;">
-                                            Edit Akun
+                                            Edit
                                         </a>
                                         <form
                                             action="{{ route('management.users.status', $user) }}"
