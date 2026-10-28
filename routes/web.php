@@ -185,6 +185,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
             // --- RUTE BARU DITAMBAHKAN DI SINI ---
             Route::get('/cuti/{request}/print', [ReportController::class, 'printLeaveRequest'])
                 ->name('leave.print');
+            Route::get('/export-excel', [ReportController::class, 'exportExcel'])
+                ->name('export');
         });
 
         // Data Karyawan

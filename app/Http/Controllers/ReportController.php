@@ -10,6 +10,8 @@ use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use App\Models\AbsenteeRecord;
 use App\Models\LeaveQuota;
+use App\Exports\ReportsExport;
+use Maatwebsite\Excel\Facades\Excel;
 
 class ReportController extends Controller
 {
@@ -153,7 +155,30 @@ class ReportController extends Controller
             'directionPurchase'
         ));
     }
+    /**
+     * Ekspor laporan rekapitulasi ke Excel.
+     */
+    public function exportExcel(Request $request)
+    {
+        $filters = $request->only([
+            'year',
+            'start_date',
+            'end_date',
+            'sort_leave',
+            'direction_leave',
+            'sort_partial',
+            'direction_partial',
+            'sort_purchase',
+            'direction_purchase',
+        ]);
 
+        $year = $filters['year'] ?? now()->year;
+
+        return Excel::download(
+            new ReportsExport($filters),
+            'laporan-rekapitulasi-' . $year . '.xlsx'
+        );
+    }
     /**
      * Cetak izin meninggalkan tempat.
      */
