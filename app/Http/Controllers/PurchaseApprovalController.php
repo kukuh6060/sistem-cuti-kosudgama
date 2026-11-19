@@ -45,19 +45,27 @@ class PurchaseApprovalController extends Controller
     {
         $requisition = PurchaseRequisition::with('user')->findOrFail($id);
 
-        // Pastikan pengajuan memang menunggu Kepala Unit.
         if ($requisition->status !== 'pending_unit') {
-            return back()->with('error', 'Pengajuan ini sudah diproses atau bukan tahap Kepala Unit.');
+            return back()->with(
+                'error',
+                'Pengajuan ini sudah diproses atau bukan tahap persetujuan unit.'
+            );
         }
 
-        // Kepala Unit hanya boleh memproses pengajuan dari unitnya.
-        if ($requisition->user->unit !== Auth::user()->unit) {
+        if (
+            !$requisition->user ||
+            $requisition->user->unit !== Auth::user()->unit
+        ) {
             abort(403, 'Anda tidak berwenang memproses pengajuan dari unit lain.');
         }
 
         $request->validate([
             'signature_data' => 'required|string',
         ]);
+
+        $jabatan = Auth::user()->role === UserRole::WAKIL_KEPALA_UNIT
+            ? 'Wakil Kepala Unit'
+            : 'Kepala Unit';
 
         $signaturePath = $this->saveSignature(
             $request->signature_data,
@@ -73,7 +81,7 @@ class PurchaseApprovalController extends Controller
         try {
             $requisition->user->notify(
                 new PengajuanStatusNotification(
-                    'Permohonan Pembelian Anda disetujui Kepala Unit (menunggu SDM).',
+                    'Permohonan Pembelian Anda disetujui ' . $jabatan . ' (menunggu SDM).',
                     route('dashboard'),
                     'info'
                 )
@@ -84,17 +92,19 @@ class PurchaseApprovalController extends Controller
             Notification::send(
                 $sdmUsers,
                 new PengajuanStatusNotification(
-                    'Permohonan Pembelian dari ' . $requisition->user->name . ' butuh approval Anda.',
+                    'Permohonan Pembelian dari ' . $requisition->user->name . ' disetujui ' . $jabatan . ' dan membutuhkan persetujuan Anda.',
                     route('purchase.approval.sdm.index')
                 )
             );
         } catch (\Exception $e) {
-            // Kegagalan notifikasi tidak membatalkan persetujuan.
+            \Illuminate\Support\Facades\Log::error(
+                'Notif error approveUnit purchase: ' . $e->getMessage()
+            );
         }
 
         return back()->with(
             'success',
-            'Permohonan disetujui, diteruskan ke SDM.'
+            'Permohonan disetujui oleh ' . $jabatan . ', diteruskan ke SDM.'
         );
     }
 
@@ -106,7 +116,24 @@ class PurchaseApprovalController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
-        return view('purchase_approval.sdm_index', compact('requests'));
+        $finalRequests = PurchaseRequisition::where('status', 'pending_final')
+            ->with('user', 'items')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return view(
+            'purchase_approval.sdm_index',
+            compact('requests', 'finalRequests')
+        );
+    }
+    public function indexSdmFinal()
+    {
+        $requests = PurchaseRequisition::where('status', 'pending_final')
+            ->with('user', 'items')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return view('purchase_approval.sdm_final_index', compact('requests'));
     }
 
     public function approveSdm(Request $request, $id)
@@ -114,22 +141,25 @@ class PurchaseApprovalController extends Controller
         $requisition = PurchaseRequisition::with('user')->findOrFail($id);
 
         if ($requisition->status !== 'pending_sdm') {
-            return back()->with('error', 'Pengajuan ini sudah diproses atau bukan tahap SDM.');
+            return back()->with(
+                'error',
+                'Pengajuan ini sudah diproses atau bukan tahap SDM.'
+            );
         }
 
-        $request->validate([
+        $validated = $request->validate([
             'requisition_number' => 'required|string|max:100',
             'signature_data' => 'required|string',
         ]);
 
         $signaturePath = $this->saveSignature(
-            $request->signature_data,
+            $validated['signature_data'],
             'purchase_sdm'
         );
 
         $requisition->update([
-            'status' => 'pending_pengurus',
-            'requisition_number' => $request->requisition_number,
+            'status' => 'pending_final',
+            'requisition_number' => $validated['requisition_number'],
             'approved_by_sdm_id' => Auth::id(),
             'signature_path_sdm' => $signaturePath,
         ]);
@@ -137,31 +167,56 @@ class PurchaseApprovalController extends Controller
         try {
             $requisition->user->notify(
                 new PengajuanStatusNotification(
-                    'Permohonan Pembelian Anda disetujui SDM (menunggu Pengurus).',
+                    'Permohonan Pembelian Anda telah disetujui awal oleh SDM. Menunggu tanda tangan Pengurus dan persetujuan final SDM.',
                     route('dashboard'),
                     'info'
                 )
             );
-
-            $pengurusUsers = User::where('role', UserRole::PENGURUS)->get();
-
-            Notification::send(
-                $pengurusUsers,
-                new PengajuanStatusNotification(
-                    'Permohonan Pembelian dari ' . $requisition->user->name . ' butuh approval final Anda.',
-                    route('purchase.approval.pengurus.index')
-                )
-            );
         } catch (\Exception $e) {
-            // Kegagalan notifikasi tidak membatalkan persetujuan.
+            \Illuminate\Support\Facades\Log::error(
+                'Notif error approveSdm purchase: ' . $e->getMessage()
+            );
         }
 
         return back()->with(
             'success',
-            'Permohonan disetujui dan diberi nomor, diteruskan ke Pengurus.'
+            'Persetujuan awal berhasil. Silakan cetak formulir untuk ditandatangani Pengurus.'
         );
     }
+    public function approveFinal($id)
+    {
+        $requisition = PurchaseRequisition::with('user')->findOrFail($id);
 
+        if ($requisition->status !== 'pending_final') {
+            return back()->with(
+                'error',
+                'Pengajuan ini belum menunggu persetujuan final atau sudah diproses.'
+            );
+        }
+
+        $requisition->update([
+            'status' => 'approved',
+        ]);
+
+        try {
+            $requisition->user->notify(
+                new PengajuanStatusNotification(
+                    'Permohonan Pembelian Anda telah DISETUJUI secara final oleh SDM.',
+                    route('dashboard'),
+                    'success'
+                )
+            );
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error(
+                'Notif error approveFinal purchase: ' . $e->getMessage()
+            );
+        }
+
+        return back()->with(
+            'success',
+            'Permohonan Pembelian berhasil disetujui secara final.'
+        );
+    }
     // --- LANGKAH 3: PENGURUS (Approval Final) ---
     public function indexPengurus()
     {
@@ -225,17 +280,28 @@ class PurchaseApprovalController extends Controller
 
         $role = Auth::user()->role;
 
-        // Tentukan status yang boleh ditolak oleh masing-masing peran.
-        if ($role === UserRole::KEPALA_UNIT) {
+        if (
+            $role === UserRole::KEPALA_UNIT ||
+            $role === UserRole::WAKIL_KEPALA_UNIT
+        ) {
             $expectedStatus = 'pending_unit';
 
-            if ($requisition->user->unit !== Auth::user()->unit) {
+            if (
+                !$requisition->user ||
+                $requisition->user->unit !== Auth::user()->unit
+            ) {
                 abort(403, 'Anda tidak berwenang menolak pengajuan dari unit lain.');
             }
+
+            $jabatan = $role === UserRole::WAKIL_KEPALA_UNIT
+                ? 'Wakil Kepala Unit'
+                : 'Kepala Unit';
         } elseif ($role === UserRole::SDM) {
             $expectedStatus = 'pending_sdm';
+            $jabatan = 'SDM';
         } elseif ($role === UserRole::PENGURUS) {
             $expectedStatus = 'pending_pengurus';
+            $jabatan = 'Pengurus';
         } else {
             abort(403, 'Anda tidak berwenang menolak pengajuan ini.');
         }
@@ -255,18 +321,20 @@ class PurchaseApprovalController extends Controller
         try {
             $requisition->user->notify(
                 new PengajuanStatusNotification(
-                    'Permohonan Pembelian Anda DITOLAK oleh ' . $role->value,
+                    'Permohonan Pembelian Anda DITOLAK oleh ' . $jabatan . '.',
                     route('dashboard'),
                     'danger'
                 )
             );
         } catch (\Exception $e) {
-            // Kegagalan notifikasi tidak membatalkan penolakan.
+            \Illuminate\Support\Facades\Log::error(
+                'Notif error reject purchase: ' . $e->getMessage()
+            );
         }
 
         return back()->with(
             'success',
-            'Permohonan ditolak dengan catatan.'
+            'Permohonan ditolak oleh ' . $jabatan . ' dengan catatan.'
         );
     }
 }

@@ -133,8 +133,11 @@
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap">
                                         <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full
-                @if($request->status == \App\Enums\LeaveStatus::APPROVED_SDM)
-                    bg-green-100 text-green-800
+                @if(
+    $request->status == \App\Enums\LeaveStatus::APPROVED_SDM ||
+    $request->status == \App\Enums\LeaveStatus::APPROVED_HR
+)
+    bg-green-100 text-green-800
                 @elseif($request->status == \App\Enums\LeaveStatus::REJECTED)
                     bg-red-100 text-red-800
                 @else
@@ -145,7 +148,10 @@
                                             Menunggu Kepala Unit
                                             @elseif($request->status == \App\Enums\LeaveStatus::APPROVED_HEAD)
                                             Disetujui Kepala Unit
-                                            @elseif($request->status == \App\Enums\LeaveStatus::APPROVED_SDM)
+                                            @elseif(
+                                            $request->status == \App\Enums\LeaveStatus::APPROVED_SDM ||
+                                            $request->status == \App\Enums\LeaveStatus::APPROVED_HR
+                                            )
                                             Disetujui SDM
                                             @elseif($request->status == \App\Enums\LeaveStatus::REJECTED)
                                             Ditolak

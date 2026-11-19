@@ -5,10 +5,6 @@
         </h2>
     </x-slot>
 
-    @push('scripts')
-    <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
-    @endpush
-
     <div class="py-12">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
@@ -56,7 +52,9 @@
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                                         @php
-                                        $quota = $request->user->leaveQuotas->first();
+                                        $quota = $request->user->leaveQuotas()
+                                        ->where('year', now()->year)
+                                        ->first();
                                         $absensi = $request->user->absenteeRecord;
                                         $isCuti = $request->leave_type == 'cuti';
                                         @endphp
@@ -142,6 +140,105 @@
                                 @endforelse
                             </tbody>
                         </table>
+                    </div>
+
+                    {{-- DAFTAR MENUNGGU PERSETUJUAN FINAL CUTI / IJIN --}}
+                    <div class="mt-10 border-t pt-6">
+
+                        <h3 class="font-bold text-lg mb-4">
+                            Daftar Pengajuan Cuti / Ijin Menunggu Persetujuan Final
+                        </h3>
+
+                        <div class="space-y-6">
+
+                            @forelse ($finalRequests as $request)
+
+                            <div class="p-4 border border-indigo-200 rounded-lg shadow-sm bg-indigo-50">
+
+                                <div class="flex justify-between items-start">
+                                    <div>
+                                        <h4 class="font-semibold">
+                                            {{ $request->user->name }}
+                                            ({{ $request->user->unit?->value }})
+                                        </h4>
+
+                                        <p class="text-sm text-gray-600">
+                                            Jenis:
+                                            {{ $request->leave_type === 'cuti' ? 'Cuti Harian' : 'Ijin Tidak Masuk' }}
+                                        </p>
+
+                                        <p class="text-sm text-gray-600">
+                                            Tanggal:
+                                            {{ $request->start_date->format('d M Y') }}
+                                            -
+                                            {{ $request->end_date->format('d M Y') }}
+                                        </p>
+
+                                        <p class="text-sm text-gray-600">
+                                            Total: {{ $request->total_days }} hari
+                                        </p>
+
+                                        @if($request->signature_path_unit)
+                                        <a href="{{ asset('storage/' . $request->signature_path_unit) }}"
+                                            target="_blank"
+                                            class="text-xs text-green-600 hover:underline block mt-2">
+                                            Lihat TTD Kepala/Wakil Kepala Unit
+                                        </a>
+                                        @endif
+
+                                        @if($request->signature_path_sdm)
+                                        <a href="{{ asset('storage/' . $request->signature_path_sdm) }}"
+                                            target="_blank"
+                                            class="text-xs text-blue-600 hover:underline block">
+                                            Lihat TTD SDM
+                                        </a>
+                                        @endif
+                                    </div>
+
+                                    <span class="text-sm font-medium text-indigo-700">
+                                        Menunggu Persetujuan Final
+                                    </span>
+                                </div>
+
+                                <div class="mt-4 p-3 bg-white border rounded-md">
+
+                                    <p class="text-sm text-gray-700 mb-3">
+                                        Pastikan dokumen sudah dicetak dan ditandatangani
+                                        Pengurus secara offline sebelum memberikan persetujuan final.
+                                    </p>
+
+                                    <a href="{{ route('report.leave.print', $request->id) }}"
+                                        target="_blank"
+                                        class="inline-flex items-center px-4 py-2 bg-gray-600 text-white rounded-md text-xs font-semibold uppercase hover:bg-gray-700">
+                                        Cetak Formulir
+                                    </a>
+
+                                    <form method="POST"
+                                        action="{{ route('approval.sdm.final', $request->id) }}"
+                                        class="mt-4"
+                                        onsubmit="return confirm('Pastikan dokumen sudah ditandatangani Pengurus . Lanjutkan persetujuan final?')">
+
+                                        @csrf
+
+                                        <button type="submit"
+                                            class="inline-flex items-center px-4 py-2 bg-green-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-green-700">
+                                            Persetujuan Final SDM
+                                        </button>
+
+                                    </form>
+                                </div>
+
+                            </div>
+
+                            @empty
+
+                            <p class="text-gray-500">
+                                Tidak ada pengajuan Cuti / Ijin yang menunggu persetujuan final.
+                            </p>
+
+                            @endforelse
+
+                        </div>
                     </div>
 
                     <h3 class="font-bold text-lg mb-4 border-t pt-6">Daftar Pengajuan Izin Meninggalkan Tempat</h3>

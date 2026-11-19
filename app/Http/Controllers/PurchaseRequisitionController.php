@@ -108,11 +108,17 @@ class PurchaseRequisitionController extends Controller
 
             // 2. Loop dan Simpan Item Barang
             foreach ($request->items as $item) {
+                $jumlah = (int) $item['jumlah_barang'];
+                $perkiraanHarga = (float) ($item['perkiraan_harga'] ?? 0);
+
+                // Hitung ulang total di server
+                $totalHarga = $jumlah * $perkiraanHarga;
+
                 $requisition->items()->create([
                     'nama_barang' => $item['nama_barang'],
-                    'jumlah_barang' => $item['jumlah_barang'],
-                    'perkiraan_harga' => $item['perkiraan_harga'] ?? 0,
-                    'harga' => $item['harga'] ?? 0,
+                    'jumlah_barang' => $jumlah,
+                    'perkiraan_harga' => $perkiraanHarga,
+                    'harga' => $totalHarga,
                     'keterangan' => $item['keterangan'] ?? null,
                 ]);
             }

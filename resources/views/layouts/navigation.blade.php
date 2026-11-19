@@ -16,7 +16,10 @@
                         {{ __('Dashboard') }}
                     </x-nav-link>
 
-                    @if(Auth::user()->role == \App\Enums\UserRole::KEPALA_UNIT)
+                    @if (in_array(auth()->user()->role->value, [
+                    'kepala_unit',
+                    'wakil_kepala_unit'
+                    ]))
                     <x-nav-link :href="route('approval.unit.index')" :active="request()->routeIs('approval.unit.*')">
                         {{ __('Approval Unit') }}
                     </x-nav-link>
@@ -35,11 +38,7 @@
                     <x-nav-link :href="route('purchase.approval.sdm.index')" :active="request()->routeIs('purchase.approval.sdm.*')">
                         {{ __('Approval Pembelian') }}
                     </x-nav-link>
-                    <x-nav-link
-                        :href="route('management.managers.index')"
-                        :active="request()->routeIs('management.managers.*')">
-                        {{ __('Data Pengelola') }}
-                    </x-nav-link>
+
                     <x-nav-link :href="route('management.all.index')" :active="request()->routeIs('management.all.index')">
                         {{ __('Data Karyawan') }}
                     </x-nav-link>
@@ -161,7 +160,10 @@
                 {{ __('Dashboard') }}
             </x-responsive-nav-link>
 
-            @if(Auth::user()->role == \App\Enums\UserRole::KEPALA_UNIT)
+            @if (in_array(auth()->user()->role->value, [
+            'kepala_unit',
+            'wakil_kepala_unit'
+            ]))
             <x-responsive-nav-link :href="route('approval.unit.index')" :active="request()->routeIs('approval.unit.*')">
                 {{ __('Approval Unit') }}
             </x-responsive-nav-link>
@@ -180,11 +182,7 @@
             <x-responsive-nav-link :href="route('purchase.approval.sdm.index')" :active="request()->routeIs('purchase.approval.sdm.*')">
                 {{ __('Approval Pembelian') }}
             </x-responsive-nav-link>
-            <x-responsive-nav-link
-                :href="route('management.managers.index')"
-                :active="request()->routeIs('management.managers.*')">
-                {{ __('Data Pengelola') }}
-            </x-responsive-nav-link>
+
             <x-responsive-nav-link :href="route('management.all.index')" :active="request()->routeIs('management.all.index')">
                 {{ __('Data Karyawan') }}
             </x-responsive-nav-link>

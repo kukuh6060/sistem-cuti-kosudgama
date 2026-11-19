@@ -9,13 +9,13 @@
         <div class="max-w-2xl mx-auto sm:px-6 lg:px-8">
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6 md:p-8 text-gray-900">
-                    
+
                     <x-auth-session-status class="mb-4" :status="session('status')" />
                     <x-input-error :messages="$errors->get('error')" class="mb-4 p-4 bg-red-100 text-red-800 rounded-md" />
                     <x-input-error :messages="$errors->get('signature_mode')" class="mb-4 p-4 bg-red-100 text-red-800 rounded-md" />
                     <x-input-error :messages="$errors->get('signature_data')" class="mb-4 p-4 bg-red-100 text-red-800 rounded-md" />
                     <x-input-error :messages="$errors->get('signature_file')" class="mb-4 p-4 bg-red-100 text-red-800 rounded-md" />
-                    
+
                     <form method="POST" action="{{ route('partial-leave.store') }}" enctype="multipart/form-data">
                         @csrf
 
@@ -28,12 +28,20 @@
                             <x-input-label for="unit_kerja" :value="__('Unit Kerja')" />
                             <x-text-input id="unit_kerja" class="block mt-1 w-full bg-gray-100" type="text" :value="ucwords(str_replace('_', ' ', Auth::user()->unit?->value ?? 'N/A'))" readonly disabled />
                         </div>
-                        
+
                         <p class="mt-6 text-sm text-gray-800">Bermaksud mengajukan izin untuk meninggalkan tempat kerja pada:</p>
 
                         <div class="mt-4">
                             <x-input-label for="leave_date" :value="__('Hari, Tanggal')" />
-                            <x-text-input id="leave_date" class="block mt-1 w-full" type="date" name="leave_date" :value="old('leave_date')" required />
+                            <x-text-input
+                                id="leave_date"
+                                type="text"
+                                name="leave_date"
+                                class="block mt-1 w-full"
+                                placeholder="DD/MM/YYYY"
+                                :value="old('leave_date', now()->format('d/m/Y'))"
+                                autocomplete="off"
+                                required />
                             <x-input-error :messages="$errors->get('leave_date')" class="mt-2" />
                         </div>
 
@@ -49,18 +57,18 @@
                                 <x-input-error :messages="$errors->get('end_time')" class="mt-2" />
                             </div>
                         </div>
-                        
+
                         <div class="mt-4">
                             <x-input-label :value="__('Untuk Keperluan (pilih salah satu)')" class="font-medium" />
                             <div class="mt-2 space-y-2">
                                 @php
-                                    $keperluan = [
-                                        'melayat' => 'Melayat',
-                                        'mengurus_orang_tua' => 'Mengurus orang tua',
-                                        'keperluan_sekolah_anak' => 'Mengurus keperluan sekolah anak',
-                                        'berobat' => 'Berobat',
-                                        'lain' => 'Keperluan pribadi lain...',
-                                    ];
+                                $keperluan = [
+                                'melayat' => 'Melayat',
+                                'mengurus_orang_tua' => 'Mengurus orang tua',
+                                'keperluan_sekolah_anak' => 'Mengurus keperluan sekolah anak',
+                                'berobat' => 'Berobat',
+                                'lain' => 'Keperluan pribadi lain...',
+                                ];
                                 @endphp
                                 @foreach ($keperluan as $value => $label)
                                 <label class="flex items-center cursor-pointer">
@@ -125,13 +133,25 @@
     </div>
 
     @push('scripts')
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/id.js"></script>
+
+    <script>
+        flatpickr("#leave_date", {
+            dateFormat: "d/m/Y",
+            allowInput: true,
+            locale: "id"
+        });
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
     <script>
         // 'load' akan menunggu semua skrip (termasuk CDN) selesai dimuat
         window.addEventListener('load', function() {
             // --- LOGIKA TANDA TANGAN (SAMA SEPERTI SEBELUMNYA) ---
             const canvas = document.getElementById('signaturePad');
-            if (!canvas) return; 
+            if (!canvas) return;
 
             const signaturePad = new SignaturePad(canvas, {
                 backgroundColor: 'rgb(255, 255, 255)'
@@ -159,7 +179,7 @@
 
             document.getElementById('clearSignature').addEventListener('click', () => {
                 signaturePad.clear();
-                signatureDataInput.value = ''; 
+                signatureDataInput.value = '';
             });
 
             document.getElementById('undoSignature').addEventListener('click', () => {
@@ -184,13 +204,13 @@
                     otherPurposeContainer.classList.add('hidden');
                 }
             }
-            
+
             // Cek saat load
             const currentPurpose = document.querySelector('input[name="purpose_category"]:checked');
             if (currentPurpose) {
                 toggleOtherPurpose(currentPurpose.value);
             }
-            
+
             // Cek saat ganti
             purposeRadios.forEach(radio => {
                 radio.addEventListener('change', function() {
@@ -236,4 +256,4 @@
         });
     </script>
     @endpush
-    </x-app-layout>
+</x-app-layout>

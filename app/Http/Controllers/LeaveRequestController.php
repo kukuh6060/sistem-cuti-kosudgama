@@ -75,15 +75,34 @@ class LeaveRequestController extends Controller
     {
         $user = Auth::user();
 
+        // Validasi format tanggal DD/MM/YYYY
         $request->validate([
             'leave_type' => ['required', 'string', 'in:cuti,ijin'],
-            'start_date' => ['required', 'date', 'after_or_equal:today'],
-            'end_date' => ['required', 'date', 'after_or_equal:start_date'],
+            'start_date' => ['required', 'date_format:d/m/Y'],
+            'end_date' => ['required', 'date_format:d/m/Y'],
             'reason' => ['required', 'string', 'min:10'],
             'signature_mode' => ['required', 'string', 'in:draw,upload'],
             'signature_data' => ['required_if:signature_mode,draw', 'nullable', 'string'],
             'signature_file' => ['required_if:signature_mode,upload', 'nullable', 'image', 'mimes:png', 'max:2048'],
         ]);
+
+        // Ubah tanggal DD/MM/YYYY menjadi objek Carbon
+        $startDate = Carbon::createFromFormat('!d/m/Y', $request->start_date);
+        $endDate = Carbon::createFromFormat('!d/m/Y', $request->end_date);
+
+        // Tanggal mulai tidak boleh sebelum hari ini
+        if ($startDate->lt(now()->startOfDay())) {
+            return back()->withErrors([
+                'start_date' => 'Tanggal mulai pengajuan tidak boleh sebelum hari ini.',
+            ])->withInput();
+        }
+
+        // Tanggal selesai tidak boleh sebelum tanggal mulai
+        if ($endDate->lt($startDate)) {
+            return back()->withErrors([
+                'end_date' => 'Tanggal selesai tidak boleh sebelum tanggal mulai.',
+            ])->withInput();
+        }
 
         $myQuota = $user->getCurrentQuota();
 
@@ -96,8 +115,11 @@ class LeaveRequestController extends Controller
             ]);
         }
 
-
-        $period = CarbonPeriod::create($request->start_date, $request->end_date);
+        // Hitung jumlah hari pengajuan
+        $period = CarbonPeriod::create(
+            $startDate->copy(),
+            $endDate->copy()
+        );
         $totalDays = 0;
 
         foreach ($period as $date) {
@@ -197,8 +219,8 @@ class LeaveRequestController extends Controller
         $leaveRequest = LeaveRequest::create([
             'user_id' => $user->id,
             'leave_type' => $request->leave_type,
-            'start_date' => $request->start_date,
-            'end_date' => $request->end_date,
+            'start_date' => $startDate->format('Y-m-d'),
+            'end_date' => $endDate->format('Y-m-d'),
             'total_days' => $totalDays,
             'reason' => $request->reason,
             'status' => 'pending', // Status awal

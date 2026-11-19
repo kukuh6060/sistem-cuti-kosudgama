@@ -13,6 +13,9 @@ use App\Enums\UserRole;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log; // Ditambahkan untuk error handling
+use App\Models\LeaveQuota;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class ApprovalController extends Controller
 {
@@ -51,28 +54,53 @@ class ApprovalController extends Controller
     /**
      * [DIPULIHKAN] Menampilkan daftar approval untuk SDM
      */
+
+
     public function indexSdm()
     {
         $currentYear = now()->year;
 
-        // Ambil Cuti Harian
+        // 1. Cuti / Ijin yang menunggu persetujuan awal SDM
         $requests = LeaveRequest::where('status', LeaveStatus::APPROVED_HEAD)
-            ->with(['user' => function ($query) use ($currentYear) {
-                $query->with(['leaveQuotas' => function ($q) use ($currentYear) {
-                    $q->where('year', $currentYear);
-                }, 'absenteeRecord']);
-            }])
+            ->with([
+                'user' => function ($query) use ($currentYear) {
+                    $query->with([
+                        'leaveQuotas' => function ($q) use ($currentYear) {
+                            $q->where('year', $currentYear);
+                        },
+                        'absenteeRecord',
+                    ]);
+                },
+                'approverUnit',
+            ])
             ->orderBy('created_at', 'asc')
             ->get();
 
-        // Ambil Izin Meninggalkan Tempat
+        // 2. Izin Meninggalkan Tempat yang menunggu persetujuan SDM
         $partialRequests = PartialLeaveRequest::where('status', LeaveStatus::APPROVED_HEAD)
-            ->with('user')
+            ->with(['user', 'approverUnit'])
             ->orderBy('created_at', 'asc')
             ->get();
 
-        return view('approvals.sdm_index', compact('requests', 'partialRequests'));
+        // 3. Cuti / Ijin yang menunggu persetujuan final SDM
+        // Pengurus sudah menandatangani formulir secara offline
+        $finalRequests = LeaveRequest::where('status', LeaveStatus::APPROVED_SDM)
+            ->with([
+                'user',
+                'approverUnit',
+                'approverSdm',
+            ])
+            ->orderBy('created_at', 'asc')
+            ->get();
+
+        return view('approvals.sdm_index', compact(
+            'requests',
+            'partialRequests',
+            'finalRequests'
+        ));
     }
+
+
 
     /**
      * Halaman Approval Pengurus
@@ -110,10 +138,36 @@ class ApprovalController extends Controller
 
     public function approveUnit(Request $request, $id)
     {
-        $request->validate(['signature_data' => 'required|string']);
-        $signaturePath = $this->saveSignature($request->signature_data, 'unit_leave');
+        $request->validate([
+            'signature_data' => 'required|string',
+        ]);
 
-        $leaveRequest = LeaveRequest::findOrFail($id);
+        $leaveRequest = LeaveRequest::with('user')->findOrFail($id);
+
+        // Pastikan pengajuan masih menunggu persetujuan unit
+        if ($leaveRequest->status !== LeaveStatus::PENDING) {
+            return back()->withErrors([
+                'error' => 'Pengajuan ini sudah diproses atau tidak dapat disetujui pada tahap ini.',
+            ]);
+        }
+
+        // Pastikan pengajuan berasal dari unit kerja yang sama
+        if (
+            !$leaveRequest->user ||
+            $leaveRequest->user->unit !== Auth::user()->unit
+        ) {
+            abort(403, 'Anda tidak berwenang memproses pengajuan dari unit lain.');
+        }
+
+        $jabatan = Auth::user()->role === UserRole::WAKIL_KEPALA_UNIT
+            ? 'Wakil Kepala Unit'
+            : 'Kepala Unit';
+
+        $signaturePath = $this->saveSignature(
+            $request->signature_data,
+            'unit_leave'
+        );
+
         $leaveRequest->update([
             'status' => LeaveStatus::APPROVED_HEAD,
             'approved_by_head_id' => Auth::id(),
@@ -127,16 +181,18 @@ class ApprovalController extends Controller
 
             $leaveRequest->user->notify(
                 new PengajuanStatusNotification(
-                    'Pengajuan ' . $jenisPengajuan . ' Anda disetujui Kepala Unit (menunggu SDM).',
+                    'Pengajuan ' . $jenisPengajuan . ' Anda disetujui ' . $jabatan . ' (menunggu SDM).',
                     route('dashboard'),
                     'info'
                 )
             );
+
             $sdmUsers = User::where('role', UserRole::SDM)->get();
+
             Notification::send(
                 $sdmUsers,
                 new PengajuanStatusNotification(
-                    $jenisPengajuan . ' dari ' . $leaveRequest->user->name . ' butuh approval Anda.',
+                    $jenisPengajuan . ' dari ' . $leaveRequest->user->name . ' membutuhkan persetujuan Anda.',
                     route('approval.sdm.index')
                 )
             );
@@ -144,13 +200,37 @@ class ApprovalController extends Controller
             Log::error('Notif error approveUnit: ' . $e->getMessage());
         }
 
-        return back()->with('success', 'Pengajuan disetujui, menunggu approval SDM.');
+        return back()->with(
+            'success',
+            'Pengajuan disetujui oleh ' . $jabatan . ', menunggu persetujuan SDM.'
+        );
     }
 
     public function rejectUnit(Request $request, $id)
     {
-        $request->validate(['rejection_reason' => 'required|string|min:5']);
-        $leaveRequest = LeaveRequest::findOrFail($id);
+        $request->validate([
+            'rejection_reason' => 'required|string|min:5',
+        ]);
+
+        $leaveRequest = LeaveRequest::with('user')->findOrFail($id);
+
+        if ($leaveRequest->status !== LeaveStatus::PENDING) {
+            return back()->withErrors([
+                'error' => 'Pengajuan ini sudah diproses atau tidak dapat ditolak pada tahap ini.',
+            ]);
+        }
+
+        if (
+            !$leaveRequest->user ||
+            $leaveRequest->user->unit !== Auth::user()->unit
+        ) {
+            abort(403, 'Anda tidak berwenang memproses pengajuan dari unit lain.');
+        }
+
+        $jabatan = Auth::user()->role === UserRole::WAKIL_KEPALA_UNIT
+            ? 'Wakil Kepala Unit'
+            : 'Kepala Unit';
+
         $leaveRequest->update([
             'status' => LeaveStatus::REJECTED,
             'approved_by_head_id' => Auth::id(),
@@ -158,20 +238,42 @@ class ApprovalController extends Controller
         ]);
 
         try {
-            $leaveRequest->user->notify(new PengajuanStatusNotification('Pengajuan Cuti Harian Anda DITOLAK oleh Kepala Unit.', route('dashboard'), 'danger'));
+            $leaveRequest->user->notify(
+                new PengajuanStatusNotification(
+                    'Pengajuan Anda ditolak oleh ' . $jabatan . '.',
+                    route('dashboard'),
+                    'danger'
+                )
+            );
         } catch (\Exception $e) {
             Log::error('Notif error rejectUnit: ' . $e->getMessage());
         }
 
-        return back()->with('success', 'Pengajuan ditolak dengan catatan.');
+        return back()->with(
+            'success',
+            'Pengajuan ditolak oleh ' . $jabatan . ' dengan catatan.'
+        );
     }
+
 
     public function approveSdm(Request $request, $id)
     {
-        $request->validate(['signature_data' => 'required|string']);
-        $signaturePath = $this->saveSignature($request->signature_data, 'sdm_leave');
+        $request->validate([
+            'signature_data' => 'required|string',
+        ]);
 
         $leaveRequest = LeaveRequest::findOrFail($id);
+
+        if ($leaveRequest->status !== LeaveStatus::APPROVED_HEAD) {
+            return back()->withErrors([
+                'error' => 'Pengajuan belum disetujui Kepala Unit atau sudah diproses.',
+            ]);
+        }
+
+        $signaturePath = $this->saveSignature(
+            $request->signature_data,
+            'sdm_leave'
+        );
 
         $leaveRequest->update([
             'status' => LeaveStatus::APPROVED_SDM,
@@ -186,18 +288,24 @@ class ApprovalController extends Controller
 
             $leaveRequest->user->notify(
                 new PengajuanStatusNotification(
-                    'Pengajuan ' . $jenisPengajuan . ' Anda disetujui SDM (menunggu Pengurus).',
+                    'Pengajuan ' . $jenisPengajuan .
+                        ' Anda telah disetujui pada tahap awal oleh SDM. ' .
+                        'Silakan menunggu tanda tangan Pengurus ' .
+                        'dan persetujuan final SDM.',
                     route('dashboard'),
                     'info'
                 )
             );
-            $pengurusUsers = User::where('role', UserRole::PENGURUS)->get();
         } catch (\Exception $e) {
             Log::error('Notif error approveSdm: ' . $e->getMessage());
         }
 
-        return back()->with('success', 'Pengajuan disetujui, diteruskan ke Pengurus.');
+        return back()->with(
+            'success',
+            'Persetujuan awal SDM berhasil. Silakan cetak pengajuan untuk ditandatangani Pengurus.'
+        );
     }
+
 
     public function rejectSdm(Request $request, $id)
     {
@@ -218,99 +326,111 @@ class ApprovalController extends Controller
         return back()->with('success', 'Pengajuan ditolak dengan catatan.');
     }
 
-    public function approvePengurus(Request $request, $id)
+    public function approveFinal($id)
     {
-        $request->validate([
-            'signature_data' => 'required|string',
-        ]);
+        $leaveRequest = DB::transaction(function () use ($id) {
 
-        $leaveRequest = LeaveRequest::findOrFail($id);
+            // Ambil pengajuan dan kunci selama proses persetujuan
+            $leaveRequest = LeaveRequest::whereKey($id)
+                ->lockForUpdate()
+                ->firstOrFail();
 
-        if ($leaveRequest->status !== LeaveStatus::APPROVED_SDM) {
-            return back()->withErrors([
-                'error' => 'Pengajuan ini sudah diproses atau belum dapat disetujui oleh Pengurus.',
+            // Pastikan sudah mendapat persetujuan awal SDM
+            if ($leaveRequest->status !== LeaveStatus::APPROVED_SDM) {
+                throw ValidationException::withMessages([
+                    'error' => 'Pengajuan belum mendapat persetujuan awal SDM atau sudah diproses.',
+                ]);
+            }
+
+            // Kunci data karyawan agar pemotongan kuota tidak berjalan bersamaan
+            $user = User::whereKey($leaveRequest->user_id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $year = now()->year;
+
+            // Ambil atau buat kuota tahun berjalan
+            $quota = $user->leaveQuotas()
+                ->where('year', $year)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$quota) {
+                $quota = $user->leaveQuotas()->create([
+                    'year' => $year,
+                    'total_quota' => $user->getAnnualLeaveQuota(),
+                    'used_quota' => 0,
+                    'total_izin' => 3,
+                    'used_izin' => 0,
+                ]);
+            }
+
+            // Proses pemotongan kuota cuti
+            if ($leaveRequest->leave_type === 'cuti') {
+
+                $sisaCuti = $quota->total_quota - $quota->used_quota;
+
+                if ($leaveRequest->total_days > $sisaCuti) {
+                    throw ValidationException::withMessages([
+                        'error' => 'Jatah cuti tidak mencukupi. Sisa cuti: ' . $sisaCuti . ' hari.',
+                    ]);
+                }
+
+                $quota->increment('used_quota', $leaveRequest->total_days);
+            }
+
+            // Proses pemotongan kuota izin tidak masuk
+            elseif ($leaveRequest->leave_type === 'ijin') {
+
+                $sisaCuti = $quota->total_quota - $quota->used_quota;
+
+                // Izin hanya boleh digunakan jika jatah cuti habis
+                if ($sisaCuti > 0) {
+                    throw ValidationException::withMessages([
+                        'error' => 'Ijin Tidak Masuk hanya dapat digunakan jika sisa cuti sudah 0 hari. Sisa cuti saat ini: ' . $sisaCuti . ' hari.',
+                    ]);
+                }
+
+                $sisaIjin = $quota->total_izin - $quota->used_izin;
+
+                if ($leaveRequest->total_days > $sisaIjin) {
+                    throw ValidationException::withMessages([
+                        'error' => 'Jatah izin tidak mencukupi. Sisa izin: ' . $sisaIjin . ' hari.',
+                    ]);
+                }
+
+                $quota->increment('used_izin', $leaveRequest->total_days);
+            } else {
+                throw ValidationException::withMessages([
+                    'error' => 'Jenis pengajuan tidak dikenali.',
+                ]);
+            }
+
+            // Persetujuan final dilakukan oleh SDM
+            $leaveRequest->update([
+                'status' => LeaveStatus::APPROVED_HR,
+                'approved_by_hr_id' => Auth::id(),
             ]);
-        }
 
-        $signaturePath = $this->saveSignature(
-            $request->signature_data,
-            'pengurus_leave'
-        );
+            return $leaveRequest;
+        });
 
-        if ($leaveRequest->leave_type === 'cuti') {
-            $quota = $leaveRequest->user->getCurrentQuota();
-
-            if (!$quota) {
-                $quota = LeaveQuota::create([
-                    'user_id' => $leaveRequest->user_id,
-                    'year' => now()->year,
-                    'total_quota' => $leaveRequest->user->getAnnualLeaveQuota(),
-                    'used_quota' => 0,
-                    'total_izin' => 3,
-                    'used_izin' => 0,
-                ]);
-            }
-            Notification::send(
-                $pengurusUsers,
-                new PengajuanStatusNotification(
-                    $jenisPengajuan . ' dari ' . $leaveRequest->user->name . ' butuh approval final Anda.',
-                    route('approval.pengurus.index')
-                )
-            );
-            $sisaCuti = $quota->total_quota - $quota->used_quota;
-
-            if ($leaveRequest->total_days > $sisaCuti) {
-                return back()->withErrors([
-                    'error' => 'Jatah cuti tidak mencukupi. Sisa cuti: ' . $sisaCuti . ' hari.',
-                ]);
-            }
-
-            // Potong jatah cuti hanya setelah persetujuan final Pengurus
-            $quota->increment('used_quota', $leaveRequest->total_days);
-        }
-
-        if ($leaveRequest->leave_type === 'ijin') {
-            $quota = $leaveRequest->user->getCurrentQuota();
-
-            if (!$quota) {
-                $quota = LeaveQuota::create([
-                    'user_id' => $leaveRequest->user_id,
-                    'year' => now()->year,
-                    'total_quota' => $leaveRequest->user->getAnnualLeaveQuota(),
-                    'used_quota' => 0,
-                    'total_izin' => 3,
-                    'used_izin' => 0,
-                ]);
-            }
-
-            $sisaIjin = $quota->total_izin - $quota->used_izin;
-
-            if ($leaveRequest->total_days > $sisaIjin) {
-                return back()->withErrors([
-                    'error' => 'Jatah ijin tidak mencukupi. Sisa ijin: ' . $sisaIjin . ' hari.',
-                ]);
-            }
-
-            // Potong jatah ijin hanya setelah persetujuan final Pengurus
-            $quota->increment('used_izin', $leaveRequest->total_days);
-        }
-
-        $leaveRequest->update([
-            'status' => LeaveStatus::APPROVED_HR,
-            'approved_by_pengurus_id' => Auth::id(),
-            'signature_path_pengurus' => $signaturePath,
-        ]);
-
+        // Kirim notifikasi setelah transaksi berhasil
         try {
+            $jenisPengajuan = $leaveRequest->leave_type === 'cuti'
+                ? 'Cuti Harian'
+                : 'Ijin Tidak Masuk';
+
             $leaveRequest->user->notify(
                 new PengajuanStatusNotification(
-                    'Pengajuan ' . $jenisPengajuan . ' Anda telah DISETUJUI (Final).',
+                    'Pengajuan ' . $jenisPengajuan .
+                        ' Anda telah DISETUJUI (Final) oleh SDM.',
                     route('dashboard'),
                     'success'
                 )
             );
         } catch (\Exception $e) {
-            Log::error('Notif error approvePengurus: ' . $e->getMessage());
+            Log::error('Notif error approveFinal: ' . $e->getMessage());
         }
 
         $jenisPengajuan = $leaveRequest->leave_type === 'cuti'
@@ -319,9 +439,13 @@ class ApprovalController extends Controller
 
         return back()->with(
             'success',
-            'Pengajuan ' . $jenisPengajuan . ' disetujui (Final). Jatah ' . $jenisPengajuan . ' telah dipotong.'
+            'Pengajuan ' . $jenisPengajuan .
+                ' disetujui (Final) oleh SDM. Jatah ' .
+                $jenisPengajuan . ' telah dipotong.'
         );
     }
+
+
 
     public function rejectPengurus(Request $request, $id)
     {
@@ -346,188 +470,206 @@ class ApprovalController extends Controller
     // === IZIN MENINGGALKAN TEMPAT ===
 
     public function approveUnitPartial(Request $request, $id)
-{
-    $request->validate([
-        'signature_data' => 'required|string',
-    ]);
-
-    $partialRequest = PartialLeaveRequest::findOrFail($id);
-
-    if ($partialRequest->status !== LeaveStatus::PENDING) {
-        return back()->withErrors([
-            'error' => 'Pengajuan Izin Meninggalkan Tempat ini sudah diproses atau tidak dapat disetujui pada tahap ini.',
+    {
+        $request->validate([
+            'signature_data' => 'required|string',
         ]);
+
+        $partialRequest = PartialLeaveRequest::with('user')->findOrFail($id);
+
+        if ($partialRequest->status !== LeaveStatus::PENDING) {
+            return back()->withErrors([
+                'error' => 'Pengajuan Izin Meninggalkan Tempat ini sudah diproses atau tidak dapat disetujui pada tahap ini.',
+            ]);
+        }
+
+        if (
+            !$partialRequest->user ||
+            $partialRequest->user->unit !== Auth::user()->unit
+        ) {
+            abort(403, 'Anda tidak berwenang memproses pengajuan dari unit lain.');
+        }
+
+        $jabatan = Auth::user()->role === UserRole::WAKIL_KEPALA_UNIT
+            ? 'Wakil Kepala Unit'
+            : 'Kepala Unit';
+
+        $signaturePath = $this->saveSignature(
+            $request->signature_data,
+            'unit_partial'
+        );
+
+        $partialRequest->update([
+            'status' => LeaveStatus::APPROVED_HEAD,
+            'approved_by_head_id' => Auth::id(),
+            'signature_path_unit' => $signaturePath,
+        ]);
+
+        try {
+            $partialRequest->user->notify(
+                new PengajuanStatusNotification(
+                    'Izin Meninggalkan Tempat Anda disetujui ' . $jabatan . ' dan menunggu persetujuan SDM.',
+                    route('dashboard'),
+                    'info'
+                )
+            );
+
+            $sdmUsers = User::where('role', UserRole::SDM)->get();
+
+            Notification::send(
+                $sdmUsers,
+                new PengajuanStatusNotification(
+                    'Izin Meninggalkan Tempat dari ' . $partialRequest->user->name . ' membutuhkan persetujuan Anda.',
+                    route('approval.sdm.index')
+                )
+            );
+        } catch (\Exception $e) {
+            Log::error(
+                'Notif error approveUnitPartial: ' . $e->getMessage()
+            );
+        }
+
+        return back()->with(
+            'success',
+            'Izin Meninggalkan Tempat disetujui oleh ' . $jabatan . ' dan diteruskan ke SDM.'
+        );
     }
-
-    $signaturePath = $this->saveSignature(
-        $request->signature_data,
-        'unit_partial'
-    );
-
-    $partialRequest->update([
-        'status' => LeaveStatus::APPROVED_HEAD,
-        'approved_by_head_id' => Auth::id(),
-        'signature_path_unit' => $signaturePath,
-    ]);
-
-    try {
-        // Notifikasi kepada karyawan
-        $partialRequest->user->notify(
-            new PengajuanStatusNotification(
-                'Izin Meninggalkan Tempat Anda disetujui Kepala Unit dan menunggu persetujuan SDM.',
-                route('dashboard'),
-                'info'
-            )
-        );
-
-        // Notifikasi kepada SDM
-        $sdmUsers = User::where('role', UserRole::SDM)->get();
-
-        Notification::send(
-            $sdmUsers,
-            new PengajuanStatusNotification(
-                'Izin Meninggalkan Tempat dari ' . $partialRequest->user->name . ' membutuhkan persetujuan Anda.',
-                route('approval.sdm.index')
-            )
-        );
-    } catch (\Exception $e) {
-        Log::error(
-            'Notif error approveUnitPartial: ' . $e->getMessage()
-        );
-    }
-
-    return back()->with(
-        'success',
-        'Izin Meninggalkan Tempat disetujui Kepala Unit dan diteruskan ke SDM.'
-    );
-}
 
     public function rejectUnitPartial(Request $request, $id)
-{
-    $request->validate([
-        'rejection_reason' => 'required|string|min:5',
-    ]);
-
-    $partialRequest = PartialLeaveRequest::findOrFail($id);
-
-    if ($partialRequest->status !== LeaveStatus::PENDING) {
-        return back()->withErrors([
-            'error' => 'Pengajuan Izin Meninggalkan Tempat ini sudah diproses atau tidak dapat ditolak pada tahap ini.',
+    {
+        $request->validate([
+            'rejection_reason' => 'required|string|min:5',
         ]);
+
+        $partialRequest = PartialLeaveRequest::with('user')->findOrFail($id);
+
+        if ($partialRequest->status !== LeaveStatus::PENDING) {
+            return back()->withErrors([
+                'error' => 'Pengajuan Izin Meninggalkan Tempat ini sudah diproses atau tidak dapat ditolak pada tahap ini.',
+            ]);
+        }
+
+        if (
+            !$partialRequest->user ||
+            $partialRequest->user->unit !== Auth::user()->unit
+        ) {
+            abort(403, 'Anda tidak berwenang memproses pengajuan dari unit lain.');
+        }
+
+        $jabatan = Auth::user()->role === UserRole::WAKIL_KEPALA_UNIT
+            ? 'Wakil Kepala Unit'
+            : 'Kepala Unit';
+
+        $partialRequest->update([
+            'status' => LeaveStatus::REJECTED,
+            'approved_by_head_id' => Auth::id(),
+            'rejection_reason' => $request->input('rejection_reason'),
+        ]);
+
+        try {
+            $partialRequest->user->notify(
+                new PengajuanStatusNotification(
+                    'Izin Meninggalkan Tempat Anda ditolak oleh ' . $jabatan . '.',
+                    route('dashboard'),
+                    'danger'
+                )
+            );
+        } catch (\Exception $e) {
+            Log::error(
+                'Notif error rejectUnitPartial: ' . $e->getMessage()
+            );
+        }
+
+        return back()->with(
+            'success',
+            'Izin Meninggalkan Tempat ditolak oleh ' . $jabatan . '.'
+        );
     }
 
-    $partialRequest->update([
-        'status' => LeaveStatus::REJECTED,
-        'approved_by_head_id' => Auth::id(),
-        'rejection_reason' => $request->input('rejection_reason'),
-    ]);
-
-    try {
-        $partialRequest->user->notify(
-            new PengajuanStatusNotification(
-                'Izin Meninggalkan Tempat Anda DITOLAK oleh Kepala Unit.',
-                route('dashboard'),
-                'danger'
-            )
-        );
-    } catch (\Exception $e) {
-        Log::error(
-            'Notif error rejectUnitPartial: ' . $e->getMessage()
-        );
-    }
-
-    return back()->with(
-        'success',
-        'Izin Meninggalkan Tempat ditolak oleh Kepala Unit.'
-    );
-}
 
     public function approveSdmPartial(Request $request, $id)
-{
-    $request->validate([
-        'signature_data' => 'required|string',
-    ]);
-
-    $partialRequest = PartialLeaveRequest::findOrFail($id);
-
-    if ($partialRequest->status !== LeaveStatus::APPROVED_HEAD) {
-        return back()->withErrors([
-            'error' => 'Pengajuan Izin Meninggalkan Tempat belum disetujui Kepala Unit atau sudah diproses.',
+    {
+        $request->validate([
+            'signature_data' => 'required|string',
         ]);
+
+        $partialRequest = PartialLeaveRequest::findOrFail($id);
+
+        if ($partialRequest->status !== LeaveStatus::APPROVED_HEAD) {
+            return back()->withErrors([
+                'error' => 'Pengajuan Izin Meninggalkan Tempat belum disetujui Kepala Unit atau sudah diproses.',
+            ]);
+        }
+
+        $signaturePath = $this->saveSignature(
+            $request->signature_data,
+            'sdm_partial'
+        );
+
+        $partialRequest->update([
+            'status' => LeaveStatus::APPROVED_HR,
+            'approved_by_hr_id' => Auth::id(),
+            'signature_path_sdm' => $signaturePath,
+        ]);
+
+        try {
+            $partialRequest->user->notify(
+                new PengajuanStatusNotification(
+                    'Izin Meninggalkan Tempat Anda telah DISETUJUI (Final) oleh SDM.',
+                    route('dashboard'),
+                    'success'
+                )
+            );
+        } catch (\Exception $e) {
+            Log::error(
+                'Notif error approveSdmPartial: ' . $e->getMessage()
+            );
+        }
+
+        return back()->with(
+            'success',
+            'Izin Meninggalkan Tempat berhasil disetujui SDM (Final).'
+        );
     }
 
-    $signaturePath = $this->saveSignature(
-        $request->signature_data,
-        'sdm_partial'
-    );
-
-    $partialRequest->update([
-        'status' => LeaveStatus::APPROVED_SDM,
-        'approved_by_hr_id' => Auth::id(),
-        'signature_path_sdm' => $signaturePath,
-    ]);
-
-    try {
-        // SDM adalah approval FINAL
-        $partialRequest->user->notify(
-            new PengajuanStatusNotification(
-                'Izin Meninggalkan Tempat Anda telah DISETUJUI (Final) oleh SDM.',
-                route('dashboard'),
-                'success'
-            )
-        );
-    } catch (\Exception $e) {
-        Log::error(
-            'Notif error approveSdmPartial: ' . $e->getMessage()
-        );
-    }
-
-    return back()->with(
-        'success',
-        'Izin Meninggalkan Tempat disetujui SDM (Final).'
-    );
-}
 
     public function rejectSdmPartial(Request $request, $id)
-{
-    $request->validate([
-        'rejection_reason' => 'required|string|min:5',
-    ]);
-
-    $partialRequest = PartialLeaveRequest::findOrFail($id);
-
-    if ($partialRequest->status !== LeaveStatus::APPROVED_HEAD) {
-        return back()->withErrors([
-            'error' => 'Pengajuan Izin Meninggalkan Tempat belum disetujui Kepala Unit atau sudah diproses.',
+    {
+        $request->validate([
+            'rejection_reason' => 'required|string|min:5',
         ]);
-    }
 
-    $partialRequest->update([
-        'status' => LeaveStatus::REJECTED,
-        'approved_by_hr_id' => Auth::id(),
-        'rejection_reason' => $request->input('rejection_reason'),
-    ]);
+        $partialRequest = PartialLeaveRequest::findOrFail($id);
 
-    try {
-        $partialRequest->user->notify(
-            new PengajuanStatusNotification(
-                'Izin Meninggalkan Tempat Anda DITOLAK oleh SDM.',
-                route('dashboard'),
-                'danger'
-            )
+        if ($partialRequest->status !== LeaveStatus::APPROVED_HEAD) {
+            return back()->withErrors([
+                'error' => 'Pengajuan Izin Meninggalkan Tempat belum disetujui Kepala Unit atau sudah diproses.',
+            ]);
+        }
+
+        $partialRequest->update([
+            'status' => LeaveStatus::REJECTED,
+            'approved_by_hr_id' => Auth::id(),
+            'rejection_reason' => $request->input('rejection_reason'),
+        ]);
+
+        try {
+            $partialRequest->user->notify(
+                new PengajuanStatusNotification(
+                    'Izin Meninggalkan Tempat Anda DITOLAK oleh SDM.',
+                    route('dashboard'),
+                    'danger'
+                )
+            );
+        } catch (\Exception $e) {
+            Log::error(
+                'Notif error rejectSdmPartial: ' . $e->getMessage()
+            );
+        }
+
+        return back()->with(
+            'success',
+            'Izin Meninggalkan Tempat ditolak oleh SDM.'
         );
-    } catch (\Exception $e) {
-        Log::error(
-            'Notif error rejectSdmPartial: ' . $e->getMessage()
-        );
     }
-
-    return back()->with(
-        'success',
-        'Izin Meninggalkan Tempat ditolak oleh SDM.'
-    );
-}
-
-    
-
 }

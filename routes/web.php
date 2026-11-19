@@ -52,8 +52,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         });
     });
 
-    // === ROLE: KEPALA UNIT ===
-    Route::middleware('role:kepala_unit')->group(function () {
+    // === ROLE: KEPALA UNIT & WAKIL KEPALA UNIT ===
+    Route::middleware('role:kepala_unit,wakil_kepala_unit')->group(function () {
         Route::prefix('approval-unit')->name('approval.unit.')->group(function () {
             Route::get('/', [ApprovalController::class, 'indexUnit'])->name('index');
             Route::post('/approve/{id}', [ApprovalController::class, 'approveUnit'])->name('approve');
@@ -66,10 +66,19 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->name('management.unit.index');
 
         // --- RUTE BARU APPROVAL PEMBELIAN ---
-        Route::prefix('approval-pembelian-unit')->name('purchase.approval.unit.')->group(function () {
-            Route::get('/', [PurchaseApprovalController::class, 'indexUnit'])->name('index');
-            Route::post('/approve/{id}', [PurchaseApprovalController::class, 'approveUnit'])->name('approve');
-            Route::post('/reject/{id}', [PurchaseApprovalController::class, 'reject'])->name('reject');
+        Route::middleware('role:kepala_unit,wakil_kepala_unit')->group(function () {
+            Route::prefix('approval-pembelian-unit')
+                ->name('purchase.approval.unit.')
+                ->group(function () {
+                    Route::get('/', [PurchaseApprovalController::class, 'indexUnit'])
+                        ->name('index');
+
+                    Route::post('/approve/{id}', [PurchaseApprovalController::class, 'approveUnit'])
+                        ->name('approve');
+
+                    Route::post('/reject/{id}', [PurchaseApprovalController::class, 'reject'])
+                        ->name('reject');
+                });
         });
     });
 
@@ -101,10 +110,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
             });
         Route::prefix('approval-sdm')->name('approval.sdm.')->group(function () {
             Route::get('/', [ApprovalController::class, 'indexSdm'])->name('index');
+
             Route::post('/approve/{id}', [ApprovalController::class, 'approveSdm'])->name('approve');
             Route::post('/reject/{id}', [ApprovalController::class, 'rejectSdm'])->name('reject');
+
             Route::post('/partial/approve/{id}', [ApprovalController::class, 'approveSdmPartial'])->name('partial.approve');
             Route::post('/partial/reject/{id}', [ApprovalController::class, 'rejectSdmPartial'])->name('partial.reject');
+
+            // Persetujuan final Cuti / Ijin Tidak Masuk
+            Route::post('/final/{id}', [ApprovalController::class, 'approveFinal'])->name('final');
         });
 
         // Rute Data Absensi
@@ -129,49 +143,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::get('/', [PurchaseApprovalController::class, 'indexSdm'])->name('index');
             Route::post('/approve/{id}', [PurchaseApprovalController::class, 'approveSdm'])->name('approve'); // Ini akan butuh 'requisition_number'
             Route::post('/reject/{id}', [PurchaseApprovalController::class, 'reject'])->name('reject');
-        });
-        // Pengelolaan akun Kepala Unit, SDM, dan Pengurus
-        Route::prefix('management/pengelola')
-            ->name('management.managers.')
-            ->group(function () {
-                Route::get('/', [UserController::class, 'indexManagers'])
-                    ->name('index');
-
-                Route::get('/create', [UserController::class, 'createManager'])
-                    ->name('create');
-
-                Route::post('/', [UserController::class, 'storeManager'])
-                    ->name('store');
-
-                Route::get('/{user}/edit', [UserController::class, 'editManager'])
-                    ->name('edit');
-
-                Route::put('/{user}', [UserController::class, 'updateManager'])
-                    ->name('update');
-            });
-    });
-
-    // === ROLE: PENGURUS ===
-    Route::middleware('role:pengurus')->group(function () {
-
-        // --- [BARU] RUTE APPROVAL CUTI & IZIN UNTUK PENGURUS ---
-        Route::prefix('approval-pengurus')->name('approval.pengurus.')->group(function () {
-            Route::get('/', [ApprovalController::class, 'indexPengurus'])->name('index');
-            // Rute Cuti Harian
-            Route::post('/cuti/approve/{id}', [ApprovalController::class, 'approvePengurus'])->name('leave.approve');
-            Route::post('/cuti/reject/{id}', [ApprovalController::class, 'rejectPengurus'])->name('leave.reject');
-        });
-
-        // --- RUTE BARU APPROVAL PEMBELIAN --- (Sudah ada sebelumnya)
-        Route::prefix('approval-pembelian-pengurus')->name('purchase.approval.pengurus.')->group(function () {
-            Route::get('/', [PurchaseApprovalController::class, 'indexPengurus'])->name('index');
-            Route::post('/approve/{id}', [PurchaseApprovalController::class, 'approvePengurus'])->name('approve');
-            Route::post('/reject/{id}', [PurchaseApprovalController::class, 'reject'])->name('reject');
+            Route::post('/final/{id}', [PurchaseApprovalController::class, 'approveFinal'])
+                ->name('final');
         });
     });
 
-    // === RUTE GABUNGAN UNTUK SDM & PENGURUS ===
-    Route::middleware('role:sdm,pengurus')->group(function () {
+
+
+    // === RUTE KHUSUS SDM ===
+    Route::middleware('role:sdm')->group(function () {
         // Laporan Cuti
         Route::prefix('laporan')->name('report.')->group(function () {
             Route::get('/', [ReportController::class, 'index'])->name('index');

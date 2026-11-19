@@ -10,18 +10,18 @@
     <div class="py-12">
         <div class="max-w-4xl mx-auto sm:px-6 lg:px-8">
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                <form method="POST" action="{{ route('purchase.store') }}" enctype="multipart/form-data" 
-                      x-data="purchaseForm()"> @csrf
+                <form method="POST" action="{{ route('purchase.store') }}" enctype="multipart/form-data"
+                    x-data="purchaseForm()"> @csrf
                     <div class="p-6 md:p-8 text-gray-900">
-                        
+
                         @if ($errors->any())
-                            <div class="mb-4 p-4 bg-red-100 text-red-800 rounded-md">
-                                <ul class="list-disc list-inside">
-                                    @foreach ($errors->all() as $error)
-                                        <li>{{ $error }}</li>
-                                    @endforeach
-                                </ul>
-                            </div>
+                        <div class="mb-4 p-4 bg-red-100 text-red-800 rounded-md">
+                            <ul class="list-disc list-inside">
+                                @foreach ($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                                @endforeach
+                            </ul>
+                        </div>
                         @endif
 
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -36,7 +36,17 @@
                         </div>
                         <div class="mt-4">
                             <x-input-label for="requisition_date" :value="__('Tanggal Permohonan')" />
-                            <x-text-input id="requisition_date" class="block mt-1 w-full" type="date" name="requisition_date" :value="old('requisition_date', now()->format('Y-m-d'))" required />
+
+                            <x-text-input
+                                id="requisition_date"
+                                class="block mt-1 w-full"
+                                type="text"
+                                name="requisition_date"
+                                :value="old('requisition_date', now()->format('Y-m-d'))"
+                                autocomplete="off"
+                                required />
+
+                            <x-input-error :messages="$errors->get('requisition_date')" class="mt-2" />
                         </div>
 
                         <div class="mt-6 border-t pt-6">
@@ -55,24 +65,78 @@
                                     </thead>
                                     <tbody>
                                         <template x-for="(item, index) in items" :key="index">
-                                            <tr class="border-b">
-                                                <td class="p-2">
-                                                    <input :name="'items[' + index + '][nama_barang]'" type="text" x-model="item.nama_barang" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm" required>
+                                            <tr>
+                                                <!-- Nama Barang -->
+                                                <td>
+                                                    <input
+                                                        type="text"
+                                                        x-model="item.nama_barang"
+                                                        :name="'items[' + index + '][nama_barang]'"
+                                                        required
+                                                        class="w-full rounded-md border-gray-300">
                                                 </td>
-                                                <td class="p-2">
-                                                    <input :name="'items[' + index + '][jumlah_barang]'" type="number" x-model.number="item.jumlah_barang" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm" required min="1">
+
+                                                <!-- Jumlah -->
+                                                <td>
+                                                    <input
+                                                        type="number"
+                                                        x-model.number="item.jumlah_barang"
+                                                        x-on:input="calculateTotal(index)"
+                                                        :name="'items[' + index + '][jumlah_barang]'"
+                                                        min="1"
+                                                        required
+                                                        class="w-full rounded-md border-gray-300">
                                                 </td>
-                                                <td class="p-2">
-                                                    <input :name="'items[' + index + '][perkiraan_harga]'" type="number" x-model.number="item.perkiraan_harga" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm" min="0" placeholder="Opsional">
+
+                                                <!-- Perkiraan Harga Rupiah -->
+                                                <td>
+                                                    <input
+                                                        type="text"
+                                                        :value="item.perkiraan_harga_display || ''"
+                                                        x-on:input="updatePrice(index, $event.target.value)"
+                                                        placeholder="Rp 0"
+                                                        class="w-full rounded-md border-gray-300"
+                                                        inputmode="numeric">
+
+                                                    <input
+                                                        type="hidden"
+                                                        :name="'items[' + index + '][perkiraan_harga]'"
+                                                        :value="item.perkiraan_harga">
                                                 </td>
-                                                <td class="p-2">
-                                                    <input :name="'items[' + index + '][harga]'" type="number" x-model.number="item.harga" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm" min="0" placeholder="Opsional">
+
+                                                <!-- Harga Total Otomatis -->
+                                                <td>
+                                                    <input
+                                                        type="text"
+                                                        :value="formatRupiah(item.harga)"
+                                                        readonly
+                                                        class="w-full rounded-md border-gray-300 bg-gray-100">
+
+                                                    <input
+                                                        type="hidden"
+                                                        :name="'items[' + index + '][harga]'"
+                                                        :value="item.harga">
                                                 </td>
-                                                <td class="p-2">
-                                                    <input :name="'items[' + index + '][keterangan]'" type="text" x-model="item.keterangan" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm" placeholder="Opsional">
+
+                                                <!-- Keterangan -->
+                                                <td>
+                                                    <input
+                                                        type="text"
+                                                        x-model="item.keterangan"
+                                                        :name="'items[' + index + '][keterangan]'"
+                                                        placeholder="Opsional"
+                                                        class="w-full rounded-md border-gray-300">
                                                 </td>
-                                                <td class="p-2 text-center">
-                                                    <button type="button" @click="removeItem(index)" class="text-red-500 hover:text-red-700 font-bold">&times;</button>
+
+                                                <!-- Hapus Barang -->
+                                                <td>
+                                                    <button
+                                                        type="button"
+                                                        x-on:click="removeItem(index)"
+                                                        class="text-red-600"
+                                                        x-show="items.length > 1">
+                                                        &times;
+                                                    </button>
                                                 </td>
                                             </tr>
                                         </template>
@@ -128,23 +192,61 @@
     </div>
 
     @push('scripts')
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/id.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
     <script>
         // [1] Logika Alpine.js untuk Form Dinamis
         function purchaseForm() {
             return {
-                items: [
-                    { nama_barang: '', jumlah_barang: 1, perkiraan_harga: 0, harga: 0, keterangan: '' }
-                ],
+                items: [{
+                    nama_barang: '',
+                    jumlah_barang: 1,
+                    perkiraan_harga: 0,
+                    harga: 0,
+                    keterangan: ''
+                }],
+
+                formatRupiah(angka) {
+                    return 'Rp ' + new Intl.NumberFormat('id-ID').format(
+                        Number(angka) || 0
+                    );
+                },
+
+                updatePrice(index, value) {
+                    // Ambil angka saja dari input
+                    let angka = value.replace(/\D/g, '');
+
+                    this.items[index].perkiraan_harga = Number(angka) || 0;
+
+                    // Format tampilan Rupiah
+                    this.items[index].perkiraan_harga_display =
+                        angka ? this.formatRupiah(angka) : '';
+
+                    this.calculateTotal(index);
+                },
+
+                calculateTotal(index) {
+                    const item = this.items[index];
+
+                    item.harga =
+                        (Number(item.jumlah_barang) || 0) *
+                        (Number(item.perkiraan_harga) || 0);
+                },
+
                 addItem() {
                     this.items.push({
                         nama_barang: '',
                         jumlah_barang: 1,
                         perkiraan_harga: 0,
+                        perkiraan_harga_display: '',
                         harga: 0,
                         keterangan: ''
                     });
                 },
+
                 removeItem(index) {
                     this.items.splice(index, 1);
                 }
@@ -154,8 +256,10 @@
         // [2] Logika Tanda Tangan (Sama seperti form izin)
         window.addEventListener('load', function() {
             const canvas = document.getElementById('signaturePad');
-            if (!canvas) return; 
-            const signaturePad = new SignaturePad(canvas, { backgroundColor: 'rgb(255, 255, 255)' });
+            if (!canvas) return;
+            const signaturePad = new SignaturePad(canvas, {
+                backgroundColor: 'rgb(255, 255, 255)'
+            });
             const signatureDataInput = document.getElementById('signatureData');
             const signatureFileInput = document.getElementById('signature_file');
             const form = document.querySelector('form');
@@ -178,12 +282,17 @@
             });
             document.getElementById('clearSignature').addEventListener('click', () => {
                 signaturePad.clear();
-                signatureDataInput.value = ''; 
+                signatureDataInput.value = '';
             });
             document.getElementById('undoSignature').addEventListener('click', () => {
                 const data = signaturePad.toData();
-                if (data.length) { data.pop(); signaturePad.fromData(data); signatureDataInput.value = signaturePad.toDataURL('image/png'); }
-                else { signatureDataInput.value = ''; }
+                if (data.length) {
+                    data.pop();
+                    signaturePad.fromData(data);
+                    signatureDataInput.value = signaturePad.toDataURL('image/png');
+                } else {
+                    signatureDataInput.value = '';
+                }
             });
 
             document.querySelectorAll('input[name="signature_mode"]').forEach(radio => {
@@ -206,7 +315,8 @@
                 if (mode === 'draw') {
                     if (signaturePad.isEmpty()) {
                         alert('Mohon berikan tanda tangan digital Anda.');
-                        event.preventDefault(); return;
+                        event.preventDefault();
+                        return;
                     }
                     signatureDataInput.value = signaturePad.toDataURL('image/png');
                     signatureFileInput.value = '';
@@ -214,10 +324,19 @@
                     signatureDataInput.value = '';
                     if (signatureFileInput.files.length === 0) {
                         alert('Mohon unggah file tanda tangan Anda.');
-                        event.preventDefault(); return;
+                        event.preventDefault();
+                        return;
                     }
                 }
             });
+        });
+        // Format tanggal permohonan DD/MM/YYYY
+        flatpickr("#requisition_date", {
+            dateFormat: "Y-m-d",
+            altInput: true,
+            altFormat: "d/m/Y",
+            allowInput: true,
+            locale: "id"
         });
     </script>
     @endpush

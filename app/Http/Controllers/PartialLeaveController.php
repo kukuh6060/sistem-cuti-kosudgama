@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification; // Pastikan ini ada
+use Carbon\Carbon;
 
 class PartialLeaveController extends Controller
 {
@@ -25,9 +26,32 @@ class PartialLeaveController extends Controller
     /**
      * Menyimpan pengajuan izin baru.
      */
+
     public function store(Request $request)
     {
         $user = Auth::user();
+
+        // Konversi tanggal DD/MM/YYYY menjadi YYYY-MM-DD
+        try {
+            $tanggal = Carbon::createFromFormat(
+                '!d/m/Y',
+                $request->leave_date
+            );
+
+            // Pastikan tanggal yang dimasukkan benar
+            if ($tanggal->format('d/m/Y') !== $request->leave_date) {
+                throw new \Exception('Format tanggal tidak valid.');
+            }
+        } catch (\Exception $e) {
+            return back()->withErrors([
+                'leave_date' => 'Format tanggal harus DD/MM/YYYY.',
+            ])->withInput();
+        }
+
+        // Validasi tanggal dan data lainnya
+        $request->merge([
+            'leave_date' => $tanggal->format('Y-m-d'),
+        ]);
 
         $request->validate([
             'leave_date' => ['required', 'date', 'after_or_equal:today'],
@@ -42,32 +66,35 @@ class PartialLeaveController extends Controller
 
         // --- Proses Tanda Tangan ---
         $signaturePath = null;
-        if ($request->signature_mode == 'draw' && $request->has('signature_data') && !empty($request->signature_data)) {
 
-            // === INI ADALAH PERBAIKANNYA (base6acyy -> base64) ===
-            $imageData = base64_decode(preg_replace('#^data:image/\w+;base64,#i', '', $request->signature_data));
+        if (
+            $request->signature_mode == 'draw' &&
+            $request->has('signature_data') &&
+            !empty($request->signature_data)
+        ) {
+            $imageData = base64_decode(
+                preg_replace('#^data:image/\w+;base64,#i', '', $request->signature_data)
+            );
 
             $fileName = 'signatures/partial_' . $user->id . '_' . time() . '.png';
+
             Storage::disk('public')->put($fileName, $imageData);
             $signaturePath = $fileName;
         } elseif ($request->signature_mode == 'upload') {
+
             if (!$request->hasFile('signature_file')) {
-                return back()
-                    ->withErrors([
-                        'signature_file' => 'Silakan pilih file tanda tangan terlebih dahulu.',
-                    ])
-                    ->withInput();
+                return back()->withErrors([
+                    'signature_file' => 'Silakan pilih file tanda tangan terlebih dahulu.',
+                ])->withInput();
             }
 
             $file = $request->file('signature_file');
             $stream = fopen($file->getPathname(), 'rb');
 
             if ($stream === false) {
-                return back()
-                    ->withErrors([
-                        'signature_file' => 'File tanda tangan tidak dapat dibaca.',
-                    ])
-                    ->withInput();
+                return back()->withErrors([
+                    'signature_file' => 'File tanda tangan tidak dapat dibaca.',
+                ])->withInput();
             }
 
             $fileName = 'signatures/' . bin2hex(random_bytes(16)) . '.png';
@@ -81,11 +108,9 @@ class PartialLeaveController extends Controller
             }
 
             if (!$saved) {
-                return back()
-                    ->withErrors([
-                        'signature_file' => 'Gagal menyimpan file tanda tangan.',
-                    ])
-                    ->withInput();
+                return back()->withErrors([
+                    'signature_file' => 'Gagal menyimpan file tanda tangan.',
+                ])->withInput();
             }
 
             $signaturePath = $fileName;
@@ -103,14 +128,12 @@ class PartialLeaveController extends Controller
             'signature_path' => $signaturePath,
         ]);
 
-        // === NOTIFIKASI BARU SAAT MENGAJUKAN ===
+        // --- Kirim Notifikasi ---
         try {
-            // 1. Cari Kepala Unit yang sesuai
             $kepalaUnit = User::where('role', UserRole::KEPALA_UNIT)
                 ->where('unit', $user->unit)
                 ->first();
 
-            // 2. Kirim notifikasi ke Kepala Unit (jika ada)
             if ($kepalaUnit) {
                 $kepalaUnit->notify(new PengajuanStatusNotification(
                     'Izin Meninggalkan Tempat baru dari ' . $user->name,
@@ -120,8 +143,10 @@ class PartialLeaveController extends Controller
         } catch (\Exception $e) {
             Log::error('Gagal mengirim notifikasi pengajuan izin tempat: ' . $e->getMessage());
         }
-        // ======================================
 
-        return redirect()->route('dashboard')->with('success', 'Pengajuan Izin Meninggalkan Tempat Kerja berhasil dikirim.');
+        return redirect()->route('dashboard')->with(
+            'success',
+            'Pengajuan Izin Meninggalkan Tempat Kerja berhasil dikirim.'
+        );
     }
 }

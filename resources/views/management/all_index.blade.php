@@ -65,7 +65,9 @@
                                     <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">
                                         Email
                                     </th>
-
+                                    <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">
+                                        Jabatan
+                                    </th>
                                     <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">
                                         <a href="{{ request()->fullUrlWithQuery([
         'sort' => 'unit',
@@ -132,7 +134,15 @@
                                     <td class="px-4 py-4 whitespace-nowrap">
                                         {{ $user->email }}
                                     </td>
-
+                                    <td class="px-4 py-4 whitespace-nowrap">
+                                        {{ match($user->role) {
+        \App\Enums\UserRole::KARYAWAN => 'Karyawan',
+        \App\Enums\UserRole::WAKIL_KEPALA_UNIT => 'Wakil Kepala Unit',
+        \App\Enums\UserRole::KEPALA_UNIT => 'Kepala Unit',
+        \App\Enums\UserRole::SDM => 'SDM',
+        default => '-',
+    } }}
+                                    </td>
                                     <td class="px-4 py-4 whitespace-nowrap">
                                         {{ $user->unit ? ucwords(str_replace('_', ' ', $user->unit->name)) : 'N/A' }}
                                     </td>
@@ -178,7 +188,7 @@
                                             <button
                                                 type="submit"
                                                 style="display: inline-block; background-color: {{ $user->is_active ? '#dc2626' : '#16a34a' }}; color: #ffffff; padding: 8px 14px; border-radius: 6px; font-weight: 600; border: none; cursor: pointer;">
-                                                {{ $user->is_active ? 'Nonaktifkan' : 'Aktifkan Kembali' }}
+                                                {{ $user->is_active ? 'Nonaktifkan' : 'Aktifkan' }}
                                             </button>
                                         </form>
                                         @endif
@@ -191,7 +201,7 @@
 
                                 <tr>
                                     <td
-                                        colspan="7"
+                                        colspan="{{ auth()->user()->role === \App\Enums\UserRole::SDM ? 9 : 8 }}"
                                         class="px-6 py-4 text-center text-gray-500">
                                         Tidak ada data karyawan.
                                     </td>

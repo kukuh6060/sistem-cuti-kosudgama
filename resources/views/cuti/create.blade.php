@@ -9,13 +9,13 @@
         <div class="max-w-2xl mx-auto sm:px-6 lg:px-8">
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6 md:p-8 text-gray-900">
-                    
+
                     <x-auth-session-status class="mb-4" :status="session('status')" />
                     <x-input-error :messages="$errors->get('error')" class="mb-4 p-4 bg-red-100 text-red-800 rounded-md" />
                     <x-input-error :messages="$errors->get('signature_mode')" class="mb-4 p-4 bg-red-100 text-red-800 rounded-md" />
                     <x-input-error :messages="$errors->get('signature_data')" class="mb-4 p-4 bg-red-100 text-red-800 rounded-md" />
                     <x-input-error :messages="$errors->get('signature_file')" class="mb-4 p-4 bg-red-100 text-red-800 rounded-md" />
-                    
+
                     <form method="POST" action="{{ route('cuti.store') }}" enctype="multipart/form-data">
                         @csrf
 
@@ -47,12 +47,28 @@
                         </div>
                         <div class="mt-4">
                             <x-input-label for="start_date" :value="__('Hari & Tanggal Cuti (Mulai)')" />
-                            <x-text-input id="start_date" class="block mt-1 w-full" type="date" name="start_date" :value="old('start_date')" required />
+                            <x-text-input
+                                id="start_date"
+                                class="block mt-1 w-full"
+                                type="text"
+                                name="start_date"
+                                placeholder="DD/MM/YYYY"
+                                :value="old('start_date')"
+                                autocomplete="off"
+                                required />
                             <x-input-error :messages="$errors->get('start_date')" class="mt-2" />
                         </div>
                         <div class="mt-4">
                             <x-input-label for="end_date" :value="__('Hari & Tanggal Cuti (Selesai)')" />
-                            <x-text-input id="end_date" class="block mt-1 w-full" type="date" name="end_date" :value="old('end_date')" required />
+                            <x-text-input
+                                id="end_date"
+                                class="block mt-1 w-full"
+                                type="text"
+                                name="end_date"
+                                placeholder="DD/MM/YYYY"
+                                :value="old('end_date')"
+                                autocomplete="off"
+                                required />
                             <x-input-error :messages="$errors->get('end_date')" class="mt-2" />
                         </div>
                         <div class="mt-4">
@@ -137,7 +153,7 @@
             window.addEventListener('resize', resizeCanvas);
             resizeCanvas();
 
-            
+
             // ==========================================================
             // LOGIKA BARU: Simpan data setiap kali selesai menggambar
             // ==========================================================
@@ -148,7 +164,7 @@
             // Tombol Clear: Hapus ttd dan data di input
             document.getElementById('clearSignature').addEventListener('click', () => {
                 signaturePad.clear();
-                signatureDataInput.value = ''; 
+                signatureDataInput.value = '';
             });
 
             // Tombol Undo: Hapus goresan terakhir dan update data di input
@@ -208,5 +224,23 @@
             });
         });
     </script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/id.js"></script>
+
+    <script>
+        flatpickr("#start_date", {
+            dateFormat: "d/m/Y",
+            allowInput: true,
+            locale: "id"
+        });
+
+        flatpickr("#end_date", {
+            dateFormat: "d/m/Y",
+            allowInput: true,
+            locale: "id"
+        });
+    </script>
     @endpush
-    </x-app-layout>
+</x-app-layout>

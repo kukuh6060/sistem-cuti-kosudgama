@@ -9,9 +9,26 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class UserController extends Controller
 {
+    /**
+     * Role yang dapat dikelola melalui Data Karyawan.
+     */
+    private function allowedRoles(): array
+    {
+        return [
+            UserRole::KARYAWAN,
+            UserRole::WAKIL_KEPALA_UNIT,
+            UserRole::KEPALA_UNIT,
+            UserRole::SDM,
+        ];
+    }
+
+    /**
+     * Daftar karyawan dalam unit Kepala/Wakil Kepala Unit.
+     */
     public function indexUnit()
     {
         $kepalaUnit = Auth::user();
@@ -36,15 +53,17 @@ class UserController extends Controller
         ));
     }
 
+    /**
+     * Menampilkan seluruh akun dalam satu halaman.
+     */
     public function indexAll(Request $request)
     {
         $tahun = now()->year;
 
-        // Kolom yang boleh digunakan untuk pengurutan
         $sort = $request->query('sort', 'unit');
         $direction = $request->query('direction', 'asc');
 
-        $allowedSorts = ['name', 'unit', 'is_active'];
+        $allowedSorts = ['name', 'unit', 'role', 'is_active'];
 
         if (!in_array($sort, $allowedSorts, true)) {
             $sort = 'unit';
@@ -54,14 +73,12 @@ class UserController extends Controller
             $direction = 'asc';
         }
 
-        $query = User::where('role', UserRole::KARYAWAN)
+        $query = User::whereIn('role', $this->allowedRoles())
             ->with(['leaveQuotas' => function ($query) use ($tahun) {
                 $query->where('year', $tahun);
             }]);
 
         if ($sort === 'is_active') {
-            // Arah asc: Aktif terlebih dahulu.
-            // Arah desc: Nonaktif terlebih dahulu.
             $query->orderByRaw(
                 'CASE WHEN is_active = 1 THEN 0 ELSE 1 END ' . $direction
             )->orderBy('name', 'asc');
@@ -86,7 +103,7 @@ class UserController extends Controller
     }
 
     /**
-     * Simpan akun karyawan baru.
+     * Menyimpan akun karyawan baru.
      */
     public function store(Request $request)
     {
@@ -123,6 +140,7 @@ class UserController extends Controller
             'role' => UserRole::KARYAWAN,
             'password' => Hash::make($validated['password']),
             'email_verified_at' => now(),
+            'is_active' => true,
         ]);
 
         return redirect()
@@ -131,31 +149,38 @@ class UserController extends Controller
     }
 
     /**
-     * Form edit akun karyawan.
+     * Form edit akun.
      */
     public function edit(User $user)
     {
         abort_unless(
-            $user->role === UserRole::KARYAWAN,
+            in_array($user->role, $this->allowedRoles(), true),
             404
         );
 
         $units = UserUnit::cases();
+        $roles = $this->allowedRoles();
 
         return view('management.users.edit', compact(
             'user',
-            'units'
+            'units',
+            'roles'
         ));
     }
 
     /**
-     * Perbarui data akun karyawan.
+     * Memperbarui data dan jabatan akun.
      */
     public function update(Request $request, User $user)
     {
         abort_unless(
-            $user->role === UserRole::KARYAWAN,
+            in_array($user->role, $this->allowedRoles(), true),
             404
+        );
+
+        $roleValues = array_map(
+            fn(UserRole $role) => $role->value,
+            $this->allowedRoles()
         );
 
         $unitValues = array_map(
@@ -172,33 +197,53 @@ class UserController extends Controller
                 'max:255',
                 Rule::unique('users', 'email')->ignore($user->id),
             ],
+            'role' => [
+                'required',
+                Rule::in($roleValues),
+            ],
             'unit' => [
                 'required',
                 Rule::in($unitValues),
             ],
         ]);
 
+        // Lindungi akun SDM terakhir yang masih aktif.
+        if (
+            $user->role === UserRole::SDM &&
+            $user->is_active &&
+            $validated['role'] !== UserRole::SDM->value
+        ) {
+            $jumlahSdmAktif = User::where('role', UserRole::SDM->value)
+                ->where('is_active', true)
+                ->count();
+
+            if ($jumlahSdmAktif <= 1) {
+                throw ValidationException::withMessages([
+                    'role' => 'Role SDM tidak dapat diubah karena ini adalah akun SDM aktif terakhir.',
+                ]);
+            }
+        }
+
         $user->name = $validated['name'];
         $user->email = $validated['email'];
         $user->unit = $validated['unit'];
-
-        // Email akun yang dikelola SDM dianggap sudah terverifikasi.
+        $user->role = $validated['role'];
         $user->email_verified_at = $user->email_verified_at ?? now();
 
         $user->save();
 
         return redirect()
             ->route('management.all.index')
-            ->with('success', 'Data akun karyawan berhasil diperbarui.');
+            ->with('success', 'Data akun berhasil diperbarui.');
     }
 
     /**
-     * Atur ulang kata sandi karyawan.
+     * Reset kata sandi akun.
      */
     public function resetPassword(Request $request, User $user)
     {
         abort_unless(
-            $user->role === UserRole::KARYAWAN,
+            in_array($user->role, $this->allowedRoles(), true),
             404
         );
 
@@ -216,205 +261,49 @@ class UserController extends Controller
 
         return redirect()
             ->route('management.all.index')
-            ->with('success', 'Kata sandi karyawan berhasil diatur ulang.');
+            ->with('success', 'Kata sandi akun berhasil diatur ulang.');
     }
+
+    /**
+     * Mengaktifkan atau menonaktifkan akun.
+     */
     public function updateStatus(Request $request, User $user)
     {
-        abort_unless($user->role === UserRole::KARYAWAN, 404);
+        abort_unless(
+            in_array($user->role, $this->allowedRoles(), true),
+            404
+        );
 
         $validated = $request->validate([
             'is_active' => ['required', 'boolean'],
         ]);
 
+        // Lindungi akun SDM aktif terakhir.
+        if (
+            $user->role === UserRole::SDM &&
+            $user->is_active &&
+            !$validated['is_active']
+        ) {
+            $jumlahSdmAktif = User::where('role', UserRole::SDM->value)
+                ->where('is_active', true)
+                ->count();
+
+            if ($jumlahSdmAktif <= 1) {
+                throw ValidationException::withMessages([
+                    'is_active' => 'Akun SDM aktif terakhir tidak dapat dinonaktifkan.',
+                ]);
+            }
+        }
+
         $user->is_active = $validated['is_active'];
         $user->save();
 
         $pesan = $user->is_active
-            ? 'Akun karyawan berhasil diaktifkan kembali.'
-            : 'Akun karyawan berhasil dinonaktifkan.';
+            ? 'Akun berhasil diaktifkan kembali.'
+            : 'Akun berhasil dinonaktifkan.';
 
         return redirect()
             ->route('management.all.index')
             ->with('success', $pesan);
-    }
-    /**
-     * Daftar akun Kepala Unit, SDM, dan Pengurus.
-     */
-    public function indexManagers(Request $request)
-    {
-        $roles = [
-            UserRole::KEPALA_UNIT,
-            UserRole::SDM,
-            UserRole::PENGURUS,
-        ];
-
-        $sort = $request->query('sort', 'role');
-        $direction = $request->query('direction', 'asc');
-
-        $allowedSorts = ['name', 'role', 'unit', 'is_active'];
-
-        if (!in_array($sort, $allowedSorts, true)) {
-            $sort = 'role';
-        }
-
-        if (!in_array($direction, ['asc', 'desc'], true)) {
-            $direction = 'asc';
-        }
-
-        $query = User::whereIn(
-            'role',
-            array_map(fn($role) => $role->value, $roles)
-        );
-
-        if ($sort === 'is_active') {
-            $query->orderByRaw(
-                'CASE WHEN is_active = 1 THEN 0 ELSE 1 END ' . $direction
-            )->orderBy('name', 'asc');
-        } else {
-            $query->orderBy($sort, $direction)
-                ->orderBy('name', 'asc');
-        }
-
-        $pengelola = $query->get();
-
-        return view('management.pengelola.index', compact('pengelola'));
-    }
-
-    /**
-     * Form tambah akun pengelola.
-     */
-    public function createManager()
-    {
-        $roles = [
-            UserRole::KEPALA_UNIT,
-            UserRole::SDM,
-            UserRole::PENGURUS,
-        ];
-
-        $units = UserUnit::cases();
-
-        return view('management.pengelola.create', compact('roles', 'units'));
-    }
-
-    /**
-     * Simpan akun pengelola baru.
-     */
-    public function storeManager(Request $request)
-    {
-        $roleValues = [
-            UserRole::KEPALA_UNIT->value,
-            UserRole::SDM->value,
-            UserRole::PENGURUS->value,
-        ];
-
-        $unitValues = array_map(
-            fn($unit) => $unit->value,
-            UserUnit::cases()
-        );
-
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
-            'role' => ['required', Rule::in($roleValues)],
-            'unit' => ['required', Rule::in($unitValues)],
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
-        ]);
-
-        User::create([
-            'name' => $validated['name'],
-            'email' => $validated['email'],
-            'role' => $validated['role'],
-            'unit' => $validated['unit'],
-            'password' => Hash::make($validated['password']),
-            'email_verified_at' => now(),
-            'is_active' => true,
-        ]);
-
-        return redirect()
-            ->route('management.managers.index')
-            ->with('success', 'Akun pengelola berhasil ditambahkan.');
-    }
-
-    /**
-     * Form edit akun pengelola.
-     */
-    public function editManager(User $user)
-    {
-        abort_unless(
-            in_array($user->role, [
-                UserRole::KEPALA_UNIT,
-                UserRole::SDM,
-                UserRole::PENGURUS,
-            ], true),
-            404
-        );
-
-        $roles = [
-            UserRole::KEPALA_UNIT,
-            UserRole::SDM,
-            UserRole::PENGURUS,
-        ];
-
-        $units = UserUnit::cases();
-
-        return view(
-            'management.pengelola.edit',
-            compact('user', 'roles', 'units')
-        );
-    }
-
-    /**
-     * Simpan perubahan akun pengelola.
-     */
-    public function updateManager(Request $request, User $user)
-    {
-        abort_unless(
-            in_array($user->role, [
-                UserRole::KEPALA_UNIT,
-                UserRole::SDM,
-                UserRole::PENGURUS,
-            ], true),
-            404
-        );
-
-        $roleValues = [
-            UserRole::KEPALA_UNIT->value,
-            UserRole::SDM->value,
-            UserRole::PENGURUS->value,
-        ];
-
-        $unitValues = array_map(
-            fn($unit) => $unit->value,
-            UserUnit::cases()
-        );
-
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'email' => [
-                'required',
-                'email',
-                'max:255',
-                Rule::unique('users', 'email')->ignore($user->id),
-            ],
-            'role' => ['required', Rule::in($roleValues)],
-            'unit' => ['required', Rule::in($unitValues)],
-            'password' => ['nullable', 'string', 'min:8', 'confirmed'],
-        ]);
-
-        $user->name = $validated['name'];
-        $user->email = $validated['email'];
-        $user->role = $validated['role'];
-        $user->unit = $validated['unit'];
-        $user->email_verified_at = $user->email_verified_at ?? now();
-
-        if (!empty($validated['password'])) {
-            $user->password = Hash::make($validated['password']);
-        }
-
-        $user->save();
-
-        return redirect()
-            ->route('management.managers.index')
-            ->with('success', 'Akun pengelola berhasil diperbarui.');
     }
 }
